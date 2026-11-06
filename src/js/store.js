@@ -1,6 +1,10 @@
 import { collection, deleteDoc, doc, onSnapshot, setDoc, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
 
+// Tikkie payment requests expire after roughly two weeks; the countdown starts when the link is saved in admin.
+export const TIKKIE_VALID_DAYS = 14;
+const DAY_MS = 86400000;
+
 export const DEFAULT_GOALS = [
   { amount: 100, label: 'Free fruit daily' },
   { amount: 150, label: 'Paint and Sip — the wine is free' },
@@ -103,6 +107,10 @@ export function computeStats({ members, donations, config }) {
   }
   for (const t of teamStats) t.winner = t.id === winnerId;
 
+  const tikkieAddedAtMs = config?.tikkieAddedAt?.toMillis?.() || 0;
+  const tikkieExpired = Boolean(config?.tikkieLink)
+    && (!tikkieAddedAtMs || Date.now() - tikkieAddedAtMs >= TIKKIE_VALID_DAYS * DAY_MS);
+
   return {
     teams: teamStats,
     teamsById: Object.fromEntries(teamStats.map((t) => [t.id, t])),
@@ -122,6 +130,9 @@ export function computeStats({ members, donations, config }) {
       revolutUsername: config?.revolutUsername || '',
       iban: config?.iban || '',
       accountName: config?.accountName || '',
+      // An expired (or untimed) Tikkie link is never handed out; donors see a note instead.
+      tikkieLink: tikkieExpired ? '' : (config?.tikkieLink || ''),
+      tikkieExpired,
     },
   };
 }

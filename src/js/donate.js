@@ -129,35 +129,61 @@ function renderForm(member) {
 }
 
 function showPayment({ name, amount, reference, payment }) {
-  const { revolutUsername, iban, accountName } = payment;
+  const { tikkieLink, tikkieExpired, iban, accountName, revolutUsername } = payment;
+  const hasPayment = Boolean(tikkieLink || iban || revolutUsername || tikkieExpired);
   const copyButton = (value) => `<button type="button" class="chip" data-copy="${escapeHtml(value)}">Copy</button>`;
+
+  // One panel per payment method; only the methods that are set up are offered.
+  const methods = [
+    tikkieLink && {
+      key: 'tikkie',
+      label: 'Tikkie',
+      html: `
+        <a class="btn btn-red" href="${escapeHtml(tikkieLink)}" target="_blank" rel="noopener">Open Tikkie</a>
+        <p class="small-print">Enter <strong>${euro(amount)}</strong> and put the reference above in the note.</p>`,
+    },
+    tikkieExpired && {
+      key: 'tikkie',
+      label: 'Tikkie',
+      html: '<p class="script coming-soon">Ask Emma to create a new Tikkie link.</p>',
+    },
+    revolutUsername && {
+      key: 'revolut',
+      label: 'Revolut',
+      html: `
+        <a class="btn btn-red" href="${escapeHtml(revolutLink(revolutUsername))}" target="_blank" rel="noopener">Open revolut.me/${escapeHtml(revolutUsername)}</a>
+        <p class="small-print">Enter <strong>${euro(amount)}</strong> and put the reference above in the note. Works with any bank card, Apple Pay or Google Pay.</p>`,
+    },
+    iban && {
+      key: 'bank',
+      label: 'Bank transfer',
+      html: `
+        <dl class="bank-details">
+          ${accountName ? `<dt>Name</dt><dd>${escapeHtml(accountName)}</dd>` : ''}
+          <dt>IBAN</dt><dd><code>${escapeHtml(iban)}</code>${copyButton(iban)}</dd>
+          <dt>Amount</dt><dd>${euro(amount)}</dd>
+          <dt>Reference</dt><dd><code>${escapeHtml(reference)}</code></dd>
+        </dl>`,
+    },
+  ].filter(Boolean);
+
+  const chooser = methods.length > 1
+    ? `<p class="method-prompt">How would you like to pay?</p>
+       <div class="method-chooser">${methods.map((m, i) => `<button type="button" class="chip method" data-method="${i}" aria-pressed="false">${escapeHtml(m.label)}</button>`).join('')}</div>`
+    : '';
 
   root.innerHTML = `
     <div class="label-panel pay-panel">
       <h2>Nice one, ${escapeHtml(name)}!</h2>
-      <p>Your pledge of <strong>${euro(amount)}</strong> is saved. Put this reference in the payment note so we can match it:</p>
+      <p>Your pledge of <strong>${euro(amount)}</strong> is saved.</p>
       <div class="reference"><code>${escapeHtml(reference)}</code>${copyButton(reference)}</div>
+      ${hasPayment ? `
+        <p class="reminder"><strong>Don't forget to put in the reference number</strong> (<code>${escapeHtml(reference)}</code>), or your donation cannot be linked to your account.</p>` : ''}
 
-      ${revolutUsername ? `
-        <div class="pay-option">
-          <h3>Pay with Revolut</h3>
-          <a class="btn btn-red" href="${escapeHtml(revolutLink(revolutUsername))}" target="_blank" rel="noopener">Open revolut.me/${escapeHtml(revolutUsername)}</a>
-          <p class="small-print">Enter <strong>${euro(amount)}</strong> and the reference above. Works with any bank card, Apple Pay or Google Pay — you don't need Revolut yourself.</p>
-        </div>` : ''}
-
-      ${iban ? `
-        <div class="pay-option">
-          <h3>${revolutUsername ? 'Or by' : 'Pay by'} bank transfer</h3>
-          <dl class="bank-details">
-            ${accountName ? `<dt>Name</dt><dd>${escapeHtml(accountName)}</dd>` : ''}
-            <dt>IBAN</dt><dd><code>${escapeHtml(iban)}</code>${copyButton(iban)}</dd>
-            <dt>Amount</dt><dd>${euro(amount)}</dd>
-            <dt>Reference</dt><dd><code>${escapeHtml(reference)}</code></dd>
-          </dl>
-        </div>` : ''}
-
-      ${!revolutUsername && !iban ? `
-        <p class="script coming-soon">Payment details are coming soon — your pledge is saved and we'll let you know how to pay.</p>` : ''}
+      ${methods.length ? `
+        ${chooser}
+        <div class="pay-option method-panel"></div>` : `
+        <p class="script coming-soon">Payment details are coming soon — your pledge is saved and we'll let you know how to pay.</p>`}
 
       <p class="small-print">Your donation shows up on your team page as soon as an organiser confirms it has arrived. You can follow it on your account page.</p>
       <div class="hero-ctas">
@@ -166,12 +192,34 @@ function showPayment({ name, amount, reference, payment }) {
       </div>
     </div>`;
 
-  root.querySelectorAll('[data-copy]').forEach((btn) => btn.addEventListener('click', async () => {
+  const panel = root.querySelector('.method-panel');
+
+  function showMethod(index) {
+    const m = methods[index];
+    panel.innerHTML = `<h3>Pay with ${escapeHtml(m.label)}</h3>${m.html}`;
+    root.querySelectorAll('[data-method]').forEach((btn) => {
+      const active = Number(btn.dataset.method) === index;
+      btn.classList.toggle('selected', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+    panel.querySelectorAll('[data-copy]').forEach(bindCopy);
+  }
+
+  root.querySelectorAll('[data-method]').forEach((btn) => btn.addEventListener('click', () => showMethod(Number(btn.dataset.method))));
+
+  // With a single method there is nothing to choose, so show it straight away.
+  if (methods.length === 1) showMethod(0);
+
+  root.querySelectorAll('.reference [data-copy]').forEach(bindCopy);
+}
+
+function bindCopy(btn) {
+  btn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(btn.dataset.copy);
       btn.textContent = 'Copied!';
     } catch {
       btn.textContent = 'Select & copy';
     }
-  }));
+  });
 }

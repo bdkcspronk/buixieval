@@ -6,11 +6,22 @@ import { mountDotArt } from './dot-art.js';
 import { db, isConfigured } from './firebase.js';
 import { logOut, renderLogin, watchUser } from './account.js';
 import {
-  DEFAULT_GOALS, DEFAULT_REWARDS, DEFAULT_TEAM_GOAL, TEAMS, computeDonorRewards, computeStats,
+  DEFAULT_GOALS, DEFAULT_REWARDS, DEFAULT_TEAM_GOAL, TEAMS, TIKKIE_VALID_DAYS, computeDonorRewards, computeStats,
 } from './store.js';
 import { schedule } from './schedule-data.js';
 import { escapeHtml, euro, teamColorClass } from './ui.js';
 import { isSafeImage } from './photo.js';
+
+const DAY_MS = 86400000;
+
+function tikkieNote(link, addedAtMs, now = Date.now()) {
+  if (!link) return 'No Tikkie link saved — donors will only see bank transfer.';
+  if (!addedAtMs) return 'Save the link to start the countdown.';
+  const days = Math.floor((now - addedAtMs) / DAY_MS);
+  const left = TIKKIE_VALID_DAYS - days;
+  if (left > 0) return `Added ${days} day${days === 1 ? '' : 's'} ago — expires in ${left} day${left === 1 ? '' : 's'} (about every ${TIKKIE_VALID_DAYS} days).`;
+  return `Added ${days} days ago — this link has probably expired. Create a new Tikkie request and paste the link here.`;
+}
 
 mountDotArt();
 
@@ -116,6 +127,11 @@ function renderDashboard(user) {
           <div class="field">
             <label for="st-name">Account holder name (optional)</label>
             <input id="st-name" name="accountName" maxlength="60" />
+          </div>
+          <div class="field">
+            <label for="st-tikkie">Tikkie link (optional)</label>
+            <input id="st-tikkie" name="tikkieLink" maxlength="200" placeholder="https://tikkie.me/pay/..." />
+            <p class="small-print tikkie-status" data-tikkie-status></p>
           </div>
           <div class="field">
             <label for="st-goals">Collective goals — one per line: <code>amount | what it unlocks</code></label>
@@ -233,6 +249,11 @@ function renderDashboard(user) {
     form.revolutUsername.value = config?.revolutUsername || '';
     form.iban.value = config?.iban || '';
     form.accountName.value = config?.accountName || '';
+    form.tikkieLink.value = config?.tikkieLink || '';
+    form.dataset.tikkieSaved = config?.tikkieLink || '';
+    const addedAtMs = config?.tikkieAddedAt?.toMillis?.() || 0;
+    form.dataset.tikkieAddedAt = addedAtMs;
+    form.querySelector('[data-tikkie-status]').textContent = tikkieNote(config?.tikkieLink || '', addedAtMs);
     form.goals.value = (config?.goals?.length ? config.goals : DEFAULT_GOALS)
       .map((g) => `${g.amount} | ${g.label}`).join('\n');
     const teamGoal = config?.teamGoal?.amount ? config.teamGoal : DEFAULT_TEAM_GOAL;
@@ -304,6 +325,17 @@ function renderDashboard(user) {
     }
 
     const formattedIban = iban.replace(/(.{4})/g, '$1 ').trim();
+    const tikkieLink = form.tikkieLink.value.trim();
+    if (tikkieLink && !/^https:\/\/\S+$/i.test(tikkieLink)) {
+      status.textContent = 'The Tikkie link should start with https://';
+      status.className = 'form-status error';
+      return;
+    }
+    // The countdown restarts only when the link itself changes (or has no start date yet), not on every save.
+    const restart = tikkieLink !== form.dataset.tikkieSaved || (tikkieLink && !Number(form.dataset.tikkieAddedAt));
+    const tikkieFields = restart
+      ? { tikkieLink, tikkieAddedAt: tikkieLink ? serverTimestamp() : null }
+      : { tikkieLink };
     await setDoc(doc(db, 'config', 'public'), {
       revolutUsername,
       iban: formattedIban,
@@ -311,9 +343,14 @@ function renderDashboard(user) {
       goals: goals.sort((a, b) => a.amount - b.amount),
       teamGoal,
       rewards,
+      ...tikkieFields,
     }, { merge: true });
     form.revolutUsername.value = revolutUsername;
     form.iban.value = formattedIban;
+    form.dataset.tikkieSaved = tikkieLink;
+    const savedAtMs = restart ? Date.now() : Number(form.dataset.tikkieAddedAt) || 0;
+    form.dataset.tikkieAddedAt = savedAtMs;
+    form.querySelector('[data-tikkie-status]').textContent = tikkieNote(tikkieLink, savedAtMs);
     status.textContent = 'Saved — the site is updated.';
     status.className = 'form-status';
   });

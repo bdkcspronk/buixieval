@@ -1358,6 +1358,27 @@ textarea {
   border-top: 3px dashed rgba(20, 16, 16, 0.35);
 }
 
+.reminder {
+  margin: 14px 0 0;
+  font-size: 0.95em;
+}
+
+.method-prompt {
+  margin: 22px 0 10px;
+  font-weight: bold;
+}
+
+.method-chooser {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip.method {
+  padding: 8px 16px;
+  font-size: 1em;
+}
+
 .pay-option h3 {
   font-family: 'Archivo Black', sans-serif;
   font-weight: 400;
