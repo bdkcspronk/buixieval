@@ -1,11 +1,13 @@
 import '../css/style.css';
 import { mountDotArt } from './dot-art.js';
+import { mountAmbience } from './ambience.js';
 import { isConfigured } from './firebase.js';
 import { watchPublic, createDonation } from './store.js';
 import { accountLinks, justCreatedAccount, logOut, needsVerification, renderLogin, renderVerify, watchUser } from './account.js';
 import { closedNotice, escapeHtml, euro, revolutLink } from './ui.js';
 
 mountDotArt();
+mountAmbience();
 
 const root = document.querySelector('#donate-root');
 const PRESETS = [5, 10, 20, 50];

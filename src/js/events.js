@@ -1,11 +1,13 @@
 import '../css/style.css';
 import { schedule } from './schedule-data.js';
 import { mountDotArt } from './dot-art.js';
+import { mountAmbience } from './ambience.js';
 import { isConfigured } from './firebase.js';
 import { watchPublic } from './store.js';
 import { accountLinks } from './account.js';
 
 mountDotArt();
+mountAmbience();
 
 const listEl = document.querySelector('#events-list');
 if (listEl) {

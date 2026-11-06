@@ -1,6 +1,7 @@
 import '../css/style.css';
 import { schedule } from './schedule-data.js';
 import { mountDotArt } from './dot-art.js';
+import { mountAmbience } from './ambience.js';
 import { isConfigured } from './firebase.js';
 import {
   cancelPledge, computeDonorRewards, isAdminUser, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
@@ -10,6 +11,7 @@ import { accountLinks, justCreatedAccount, logOut, needsVerification, renderLogi
 import { closedNotice, escapeHtml, euro, teamColorClass } from './ui.js';
 
 mountDotArt();
+mountAmbience();
 
 const root = document.querySelector('#signup-root');
 const memberLabel = (n) => `${n} ${n === 1 ? 'member' : 'members'}`;

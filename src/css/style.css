@@ -2268,17 +2268,98 @@ textarea {
   * { transition: none !important; }
 }
 
-/* App Check's reCAPTCHA badge is hidden; the footer carries the attribution Google requires instead. */
+/* App Check's reCAPTCHA badge is hidden. */
 .grecaptcha-badge {
   visibility: hidden;
 }
 
-.site-footer .recaptcha-note {
+.site-footer .credit-note {
   margin-top: 0.25rem;
   font-size: 0.75rem;
-  opacity: 0.7;
+  color: var(--cream);
 }
 
-.site-footer .recaptcha-note a {
-  color: inherit;
+.site-footer .credit-note a,
+.site-footer .credit-note a:visited {
+  color: var(--yellow-hi);
+  text-decoration: underline;
 }
+
+.site-footer .credit-note a:hover {
+  color: #fff;
+}
+
+/* AMBIENCE — sound toggle and flying birds */
+.bird-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 900;
+}
+
+.bird {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.bird-sprite {
+  width: 100%;
+  background-size: 400% 100%;
+  background-repeat: no-repeat;
+  animation: bird-flap var(--flap, 0.5s) steps(1, end) infinite;
+  filter: drop-shadow(0 4px 3px rgba(20, 16, 16, 0.35));
+}
+
+@keyframes bird-flap {
+  0% { background-position: 0% 0; }
+  25% { background-position: 33.333% 0; }
+  50% { background-position: 66.667% 0; }
+  75% { background-position: 100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bird-sprite { animation: none; }
+}
+
+.ambience-toggle {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 950;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--label-fill);
+  border: var(--outline);
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 var(--ink);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.15s;
+}
+
+.ambience-toggle:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--ink); }
+.ambience-toggle:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+.ambience-toggle:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.ambience-toggle.is-on { background: var(--red); }
+
+.amb-icon {
+  width: 26px;
+  height: 26px;
+  fill: var(--jar);
+  stroke: var(--jar);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  grid-area: 1 / 1;
+}
+
+.amb-x { fill: none; }
+.amb-icon-on { display: none; }
+.ambience-toggle.is-on .amb-icon-on { display: block; fill: #fff; stroke: #fff; }
+.ambience-toggle.is-on .amb-icon-off { display: none; }
+

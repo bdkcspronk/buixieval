@@ -1,5 +1,6 @@
 import '../css/style.css';
 import { mountDotArt } from './dot-art.js';
+import { mountAmbience } from './ambience.js';
 import { isConfigured } from './firebase.js';
 import { computeStats, watchPhotos, watchPublic } from './store.js';
 import { isSafeImage } from './photo.js';
@@ -8,6 +9,7 @@ import { closedNotice, escapeHtml, euro, teamColorClass } from './ui.js';
 import { accountLinks, watchUser } from './account.js';
 
 mountDotArt();
+mountAmbience();
 
 const root = document.querySelector('#team-root');
 let stats = null;
