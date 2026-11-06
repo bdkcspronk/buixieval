@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "buixieval-9c293"
+  },
+  "targets": {
+    "buixieval-9c293": {
+      "hosting": {
+        "buixieval": [
+          "buixieval"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

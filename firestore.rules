@@ -1,0 +1,108 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // The two teams are fixed in the code (TEAMS in src/js/store.js).
+    function validTeam(id) {
+      return id in ['blue', 'pink'];
+    }
+
+    function validName(n) {
+      return n is string && n.trim().size() > 0 && n.size() <= 60;
+    }
+
+    function validDays(d) {
+      return d is list && d.size() > 0 && d.size() <= 7
+        && d.hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+    }
+
+    // Admins are added by hand in the Firebase console: admins/{uid}
+    match /admins/{uid} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /config/public {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Public member profile, keyed by the member's auth uid.
+    // Members can change their name and days; only admins can move them to another team.
+    match /members/{uid} {
+      allow read: if true;
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['name', 'teamId', 'days', 'createdAt'])
+        && request.resource.data.keys().hasAll(['name', 'teamId', 'days', 'createdAt'])
+        && validName(request.resource.data.name)
+        && validTeam(request.resource.data.teamId)
+        && validDays(request.resource.data.days)
+        && request.resource.data.createdAt == request.time;
+      allow update: if (isAdmin() && validTeam(request.resource.data.teamId))
+        || (isSelf(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'days'])
+          && validName(request.resource.data.name)
+          && validDays(request.resource.data.days));
+      allow delete: if isAdmin();
+    }
+
+    // Member's email, private to them and admins.
+    match /memberContacts/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.email == request.auth.token.email;
+      allow update, delete: if isAdmin();
+    }
+
+    // Member's picture: a small JPEG data URL, set by the member, removable by admins.
+    match /memberPhotos/{uid} {
+      allow read: if true;
+      allow create, update: if isSelf(uid)
+        && exists(/databases/$(database)/documents/members/$(uid))
+        && request.resource.data.keys().hasOnly(['image', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['image', 'updatedAt'])
+        && request.resource.data.image is string
+        && request.resource.data.image.size() <= 240000
+        && request.resource.data.image.matches('^data:image/jpeg;base64,[A-Za-z0-9+/]+=*$')
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if isSelf(uid) || isAdmin();
+    }
+
+    // Donations. Members can only pledge pending donations in their own name;
+    // only admins can confirm or reject.
+    match /donations/{id} {
+      allow read: if true;
+      allow create: if signedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && request.resource.data.keys().hasOnly(['uid', 'teamId', 'amount', 'status', 'reference', 'createdAt'])
+        && request.resource.data.keys().hasAll(['uid', 'teamId', 'amount', 'status', 'reference', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && (request.resource.data.teamId == null || validTeam(request.resource.data.teamId))
+        && request.resource.data.amount is int
+        && request.resource.data.amount >= 1
+        && request.resource.data.amount <= 1000
+        && request.resource.data.status == 'pending'
+        && request.resource.data.reference is string
+        && request.resource.data.reference.matches('^BX-[A-Z0-9]{5}$')
+        && request.resource.data.createdAt == request.time;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedAt'])
+        && request.resource.data.status in ['pending', 'confirmed', 'rejected'];
+      allow delete: if isAdmin();
+    }
+  }
+}
