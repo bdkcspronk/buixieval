@@ -84,7 +84,8 @@ function renderForm(member) {
           <option value="">No team — just the event</option>
         </select>
       </div>
-      <button class="btn btn-red" type="submit">Continue to payment</button>
+      <button class="btn btn-red" type="submit">Review pledge</button>
+      <div class="pledge-review" hidden></div>
       <p class="form-status" role="status" aria-live="polite"></p>
     </form>`;
 
@@ -102,7 +103,10 @@ function renderForm(member) {
   amountInput.addEventListener('input', syncChips);
   if (location.hash === '#rewards') root.querySelector('#rewards').scrollIntoView();
 
-  form.addEventListener('submit', async (e) => {
+  // Step 1: review. Nothing is saved until the donor confirms.
+  const review = form.querySelector('.pledge-review');
+  const submitButton = form.querySelector('button[type="submit"]');
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
     const amount = Number(amountInput.value);
     const teamId = form.team.value || null;
@@ -111,20 +115,38 @@ function renderForm(member) {
       status.className = 'form-status error';
       return;
     }
+    const teamName = teamId ? stats.teams.find((t) => t.id === teamId)?.name || 'your team' : null;
+    review.innerHTML = `
+      <p>You're pledging <strong>${euro(amount)}</strong>${teamName ? ` for <strong>${escapeHtml(teamName)}</strong>` : ' for the event (no team)'}.</p>
+      <p class="small-print">Your pledge is saved to the admin right away, then you'll see how to pay.</p>
+      <div class="review-actions">
+        <button type="button" class="btn btn-red" data-confirm>Confirm pledge</button>
+        <button type="button" class="btn btn-dark" data-back>Go back</button>
+      </div>`;
+    review.hidden = false;
+    submitButton.hidden = true;
+    status.textContent = '';
 
-    const button = form.querySelector('button[type="submit"]');
-    button.disabled = true;
-    status.textContent = 'Saving your pledge…';
-    status.className = 'form-status';
-    try {
-      const { reference } = await createDonation({ uid: user.uid, teamId, amount });
-      view = 'paid';
-      showPayment({ name: member.name, amount, reference, payment: stats.payment });
-    } catch {
-      button.disabled = false;
-      status.textContent = 'Something went wrong — please try again.';
-      status.className = 'form-status error';
-    }
+    review.querySelector('[data-back]').addEventListener('click', () => {
+      review.hidden = true;
+      submitButton.hidden = false;
+    });
+
+    review.querySelector('[data-confirm]').addEventListener('click', async (ev) => {
+      const button = ev.currentTarget;
+      button.disabled = true;
+      status.textContent = 'Saving your pledge…';
+      status.className = 'form-status';
+      try {
+        const { reference } = await createDonation({ uid: user.uid, teamId, amount });
+        view = 'paid';
+        showPayment({ name: member.name, amount, reference, payment: stats.payment });
+      } catch {
+        button.disabled = false;
+        status.textContent = 'Something went wrong — please try again.';
+        status.className = 'form-status error';
+      }
+    });
   });
 }
 
