@@ -5,13 +5,16 @@ import { computeStats, watchPhotos, watchPublic } from './store.js';
 import { isSafeImage } from './photo.js';
 import { treemap } from './treemap.js';
 import { closedNotice, escapeHtml, euro, teamColorClass } from './ui.js';
-import { accountLinks } from './account.js';
+import { accountLinks, watchUser } from './account.js';
 
 mountDotArt();
 
 const root = document.querySelector('#team-root');
 let stats = null;
 let photos = {};
+let showPhotosFor = null; // set once Firestore is live (not in the demo)
+let mapSeen = false;
+let viewerUid = null;
 
 // Dev-only preview with fake data: team.html?demo=2 (also 3, 4). Stripped from production builds.
 const demo = import.meta.env.DEV && new URLSearchParams(location.search).get('demo');
@@ -35,7 +38,8 @@ if (demo) {
   root.innerHTML = '<div class="jar-panel notice-panel"><p class="script">Loading…</p></div>';
   const refreshLinks = accountLinks();
   watchPublic((s) => { stats = s; render(); refreshLinks(s); }, () => { root.innerHTML = closedNotice('Team pages'); });
-  watchPhotos((p) => { photos = p; drawMap(); });
+  showPhotosFor = watchPhotos((p) => { photos = p; drawMap(); });
+  watchUser((u) => { viewerUid = u?.uid || null; syncPhotos(); });
   let lastWidth = window.innerWidth;
   window.addEventListener('resize', () => {
     if (window.innerWidth !== lastWidth) { lastWidth = window.innerWidth; drawMap(); }
@@ -121,6 +125,34 @@ function render() {
     </div>`;
 
   drawMap();
+  watchMapVisibility();
+  syncPhotos();
+}
+
+// Pictures are only for logged-in members (the rules enforce this too). They are fetched once the
+// map is (nearly) on screen, and only for members with a confirmed donation, who are the only
+// ones with a block.
+function syncPhotos() {
+  if (!showPhotosFor || !stats) return;
+  const viewerIsMember = Boolean(viewerUid && stats.membersById[viewerUid]);
+  if (!viewerIsMember || !mapSeen) { showPhotosFor([]); return; }
+  showPhotosFor(stats.members.filter((m) => memberBlocks([m]).length).map((m) => m.id));
+}
+
+// render() rebuilds the page, so each new map element replaces the previously observed one.
+let mapObserver = null;
+function watchMapVisibility() {
+  mapObserver?.disconnect();
+  const map = root.querySelector('#member-map');
+  if (mapSeen || !map || !showPhotosFor) return;
+  if (!('IntersectionObserver' in window)) { mapSeen = true; return; }
+  mapObserver = new IntersectionObserver((entries) => {
+    if (!entries.some((e) => e.isIntersecting)) return;
+    mapObserver.disconnect();
+    mapSeen = true;
+    syncPhotos();
+  }, { rootMargin: '300px 0px' });
+  observer.observe(map);
 }
 
 // Emma and Camiel head their team's roster; everyone else follows alphabetically.

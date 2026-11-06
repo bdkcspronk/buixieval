@@ -975,6 +975,11 @@ textarea {
   background: var(--yellow);
 }
 
+.photo-note {
+  margin: -4px 0 14px;
+  opacity: 0.85;
+}
+
 .photo-row {
   display: flex;
   align-items: center;

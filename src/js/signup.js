@@ -24,9 +24,11 @@ if (!isConfigured) {
   root.innerHTML = closedNotice('Signing up');
 } else {
   root.innerHTML = '<div class="jar-panel notice-panel"><p class="script">Loading…</p></div>';
+  const showPhotosFor = watchPhotos((p) => { photos = p; renderPhoto(); });
   watchUser((u) => {
     user = u;
     isAdmin = false;
+    showPhotosFor(u ? [u.uid] : []);
     update();
     if (u) {
       isAdminUser(u.uid).then((admin) => {
@@ -38,7 +40,6 @@ if (!isConfigured) {
   });
   const refreshLinks = accountLinks();
   watchPublic((s) => { stats = s; update(); refreshLinks(s); }, () => { root.innerHTML = closedNotice('Signing up'); });
-  watchPhotos((p) => { photos = p; renderPhoto(); });
 }
 
 function update() {
@@ -176,6 +177,7 @@ function renderAccount(member) {
     </div>
     <div class="label-panel photo-panel">
       <h3 class="panel-title">Your picture on the team page</h3>
+      <p class="photo-note">Your picture appears on the team page once you've donated, and only logged-in members can see it.</p>
       <div class="photo-row">
         <div class="photo-preview ${teamColorClass(team)}" id="photo-preview"></div>
         <div class="photo-actions">

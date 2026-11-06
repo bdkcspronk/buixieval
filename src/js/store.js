@@ -210,11 +210,32 @@ export function updateMember(uid, changes) {
   return updateDoc(doc(db, 'members', uid), changes);
 }
 
-// Member pictures live in their own collection so the main member list stays small.
+// Member pictures live in their own collection so the main member list stays small. They are
+// fetched one document at a time, only for the members asked for (the rules forbid listing them
+// all). Returns a function to call with the uids whose pictures are wanted now.
 export function watchPhotos(onData) {
-  return onSnapshot(collection(db, 'memberPhotos'), (snap) => {
-    onData(Object.fromEntries(snap.docs.map((d) => [d.id, d.data().image])));
-  }, () => onData({}));
+  const subs = new Map();
+  const images = {};
+  const emit = () => onData({ ...images });
+  return (uids) => {
+    const want = new Set(uids);
+    let dropped = false;
+    for (const [uid, unsub] of subs) {
+      if (want.has(uid)) continue;
+      unsub();
+      subs.delete(uid);
+      if (uid in images) { delete images[uid]; dropped = true; }
+    }
+    for (const uid of want) {
+      if (subs.has(uid)) continue;
+      subs.set(uid, onSnapshot(doc(db, 'memberPhotos', uid), (s) => {
+        if (s.exists()) images[uid] = s.data().image;
+        else delete images[uid];
+        emit();
+      }, () => {}));
+    }
+    if (dropped) emit();
+  };
 }
 
 export const setMemberPhoto = (uid, image) => setDoc(doc(db, 'memberPhotos', uid), { image, updatedAt: serverTimestamp() });

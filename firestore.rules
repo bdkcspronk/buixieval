@@ -95,8 +95,11 @@ service cloud.firestore {
     }
 
     // Member's picture: a small JPEG data URL, set by the member, removable by admins.
+    // Only logged-in members see pictures, fetched one at a time by uid; only admins may list them all.
     match /memberPhotos/{uid} {
-      allow read: if true;
+      allow get: if isSelf(uid) || isAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid)));
+      allow list: if isAdmin();
       allow create, update: if isSelf(uid)
         && verified()
         && notBanned()
