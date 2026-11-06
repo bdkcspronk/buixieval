@@ -1,7 +1,7 @@
 import '../css/style.css';
 import { mountDotArt } from './dot-art.js';
 import { isConfigured } from './firebase.js';
-import { watchPhotos, watchPublic } from './store.js';
+import { computeStats, watchPhotos, watchPublic } from './store.js';
 import { isSafeImage } from './photo.js';
 import { treemap } from './treemap.js';
 import { closedNotice, escapeHtml, euro, teamColorClass } from './ui.js';
@@ -13,7 +13,23 @@ const root = document.querySelector('#team-root');
 let stats = null;
 let photos = {};
 
-if (!isConfigured) {
+// Dev-only preview with fake data: team.html?demo=2 (also 3, 4). Stripped from production builds.
+const demo = import.meta.env.DEV && new URLSearchParams(location.search).get('demo');
+
+if (demo) {
+  const sets = {
+    2: [['Anna', 'blue', 50], ['Bram', 'pink', 0]],
+    3: [['Anna', 'blue', 80], ['Bram', 'pink', 25], ['Cas', 'blue', 0]],
+    4: [['Anna', 'blue', 120], ['Bram', 'pink', 60], ['Cas', 'pink', 10], ['Dewi', 'blue', 0]],
+  };
+  const people = sets[demo] || sets[4];
+  const members = people.map(([name, teamId], i) => ({ id: `m${i}`, name, teamId }));
+  const donations = people.map(([, teamId, amount], i) => ({ uid: `m${i}`, teamId, amount, status: 'confirmed' }))
+    .filter((d) => d.amount);
+  stats = computeStats({ members, donations, config: null });
+  // Deferred so the helpers declared further down this module exist.
+  setTimeout(() => { render(); window.addEventListener('resize', drawMap); });
+} else if (!isConfigured) {
   root.innerHTML = closedNotice('Team pages');
 } else {
   root.innerHTML = '<div class="jar-panel notice-panel"><p class="script">Loading…</p></div>';
@@ -90,18 +106,27 @@ function render() {
       ${stats.teams.map((t) => `<span class="map-legend-item ${teamColorClass(t)}">${escapeHtml(t.emoji || '')} Team ${escapeHtml(t.name)} · ${membersOf(t).length}</span>`).join('')}
     </div>
     <div class="member-map" id="member-map"></div>
-    <p class="map-note script">Everyone fights for the same space — the more you donate, the bigger your block.</p>`;
+    <p class="map-note script">Everyone fights for the same space — the more you donate, the bigger your block.</p>
+    <div class="roster">
+      ${stats.teams.map((t) => {
+        const names = membersOf(t).map((m) => m.name).sort((a, b) => a.localeCompare(b));
+        return `
+      <section class="roster-team ${teamColorClass(t)}">
+        <h2>${escapeHtml(t.emoji || '')} Team ${escapeHtml(t.name)} <span>${names.length}</span></h2>
+        ${names.length ? `<ul>${names.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul>` : '<p>No members yet.</p>'}
+      </section>`;
+      }).join('')}
+    </div>`;
 
   drawMap();
 }
 
 // A member gets one block per team they gave to (so giving to both teams shows as two blocks).
-// Members who haven't donated yet get a single block for their own team.
+// Only confirmed donations earn a block; everyone is listed in the roster below the map.
 function memberBlocks(members) {
   return members.flatMap((m) => {
-    const teamIds = [...new Set([...Object.keys(m.raisedByTeam || {}), ...Object.keys(m.pendingByTeam || {})])]
-      .filter((id) => stats.teamsById[id]);
-    if (!teamIds.length) teamIds.push(m.teamId);
+    const teamIds = Object.keys(m.raisedByTeam || {})
+      .filter((id) => stats.teamsById[id] && m.raisedByTeam[id] > 0);
     // Their own team first, so the photo/tone order stays stable.
     teamIds.sort((x, y) => Number(y === m.teamId) - Number(x === m.teamId));
     return teamIds.map((teamId) => ({
@@ -113,6 +138,54 @@ function memberBlocks(members) {
   });
 }
 
+// Smallest block that still shows a name at the minimum font (12px Archivo Black is ~9px per
+// character), including the block's padding and gap.
+const BENCH_ROW = 44;
+const nameWidth = (name) => Math.max(64, name.length * 9 + 26);
+
+// Wraps blocks into rows along the bottom of the map, each just as wide as its name (not stretched,
+// so a bench block never looks bigger than it should).
+function benchLayout(bench, width, height) {
+  const rows = [];
+  for (const b of bench) {
+    const row = rows[rows.length - 1];
+    if (row && row.used + nameWidth(b.member.name) <= width) { row.items.push(b); row.used += nameWidth(b.member.name); }
+    else rows.push({ items: [b], used: nameWidth(b.member.name) });
+  }
+  const out = [];
+  rows.forEach((row, r) => {
+    const y = height - (rows.length - r) * BENCH_ROW;
+    let x = 0;
+    for (const b of row.items) {
+      const w = Math.min(nameWidth(b.member.name), width);
+      out.push({ item: b, x, y, w, h: BENCH_ROW });
+      x += w;
+    }
+  });
+  return { rects: out, height: rows.length * BENCH_ROW };
+}
+
+// Donors share the map in exact proportion to what they raised. Anyone whose share would be too
+// small to show their name moves to a bench of name-sized blocks along the bottom instead, so the
+// donor blocks above can stay accurate.
+function layoutBlocks(blocks, width, height) {
+  const bench = new Set();
+  for (;;) {
+    const bottom = benchLayout(blocks.filter((b) => bench.has(b)), width, height);
+    const donors = blocks.filter((b) => !bench.has(b));
+    const top = treemap(donors.map((b) => ({ ...b, weight: b.raised })), width, height - bottom.height);
+    // Too narrow or too short for the name: bench them (but always keep at least the top donor).
+    const cramped = top.filter(({ item, w, h }) => w < nameWidth(item.member.name) || h < BENCH_ROW).map((r) => r.item);
+    const tooSmall = donors.filter((b) => cramped.some((c) => c.member === b.member && c.teamId === b.teamId));
+    if (tooSmall.length && tooSmall.length < donors.length) {
+      // Bench the smallest first; the rest may get room once it's gone.
+      bench.add(tooSmall.reduce((a, b) => (b.raised < a.raised ? b : a)));
+      continue;
+    }
+    return [...top, ...bottom.rects];
+  }
+}
+
 // One shared map: every member of every team competes for the same space, coloured by team.
 function drawMap() {
   const map = root.querySelector('#member-map');
@@ -121,7 +194,7 @@ function drawMap() {
 
   if (!blocks.length) {
     map.style.height = '';
-    map.innerHTML = '<div class="member-empty"><p>No members yet — be the first to join!</p></div>';
+    map.innerHTML = '<div class="member-empty"><p>No donations yet — be the first to give!</p></div>';
     return;
   }
 
@@ -133,11 +206,9 @@ function drawMap() {
   const innerHeight = map.clientHeight;
 
   const top = Math.max(0, ...blocks.map((b) => b.raised));
-  const floor = top ? Math.max(5, top * 0.07) : 1;
   const leader = top ? blocks.find((b) => b.raised === top) : null;
-  const items = blocks.map((b) => ({ ...b, weight: Math.max(b.raised, floor) }));
 
-  map.innerHTML = treemap(items, width, innerHeight).map(({ item, x, y, w, h }, i) => {
+  map.innerHTML = layoutBlocks(blocks, width, innerHeight).map(({ item, x, y, w, h }, i) => {
     const m = item.member;
     const team = stats.teamsById[item.teamId];
     const size = Math.max(12, Math.min(44, Math.sqrt(w * h) / 6.5));

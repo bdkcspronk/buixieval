@@ -1301,12 +1301,59 @@ textarea {
   text-align: center;
 }
 
+.roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-top: 32px;
+}
+
+.roster-team {
+  padding: 18px 22px;
+  color: var(--team-text, var(--jar));
+  background: var(--team-fill, var(--label-fill));
+  border: 4px solid var(--ink);
+  border-radius: 22px;
+  box-shadow: var(--pop);
+}
+
+.roster-team h2 {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+}
+
+.roster-team ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  columns: 2 130px;
+  column-gap: 16px;
+}
+
+.roster-team li {
+  padding: 3px 0;
+  break-inside: avoid;
+  overflow-wrap: anywhere;
+}
+
+.roster-team p {
+  margin: 0;
+}
+
 .map-note {
-  margin: 14px 0 0;
+  display: table;
+  margin: 18px auto 0;
+  padding: 8px 20px;
   text-align: center;
   font-size: 1.2rem;
   color: var(--yellow);
-  text-shadow: 2px 2px 0 var(--ink);
+  background: var(--ink);
+  border-radius: 999px;
 }
 
 .team-link {
