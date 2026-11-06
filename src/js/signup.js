@@ -3,7 +3,7 @@ import { schedule } from './schedule-data.js';
 import { mountDotArt } from './dot-art.js';
 import { isConfigured } from './firebase.js';
 import {
-  cancelPledge, computeDonorRewards, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
+  cancelPledge, computeDonorRewards, isAdminUser, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
 } from './store.js';
 import { isSafeImage, resizeImage } from './photo.js';
 import { accountLinks, logOut, renderLogin, watchUser } from './account.js';
@@ -15,6 +15,7 @@ const root = document.querySelector('#signup-root');
 const memberLabel = (n) => `${n} ${n === 1 ? 'member' : 'members'}`;
 
 let user;
+let isAdmin = false;
 let stats = null;
 let photos = {};
 let view = '';
@@ -23,7 +24,18 @@ if (!isConfigured) {
   root.innerHTML = closedNotice('Signing up');
 } else {
   root.innerHTML = '<div class="jar-panel notice-panel"><p class="script">Loading…</p></div>';
-  watchUser((u) => { user = u; update(); });
+  watchUser((u) => {
+    user = u;
+    isAdmin = false;
+    update();
+    if (u) {
+      isAdminUser(u.uid).then((admin) => {
+        if (user !== u || !admin) return;
+        isAdmin = true;
+        root.querySelector('[data-admin-link]')?.removeAttribute('hidden');
+      });
+    }
+  });
   const refreshLinks = accountLinks();
   watchPublic((s) => { stats = s; update(); refreshLinks(s); }, () => { root.innerHTML = closedNotice('Signing up'); });
   watchPhotos((p) => { photos = p; renderPhoto(); });
@@ -156,6 +168,7 @@ function renderAccount(member) {
       <div class="hero-ctas">
         <a class="btn btn-red" href="donate.html">Donate</a>
         ${team ? `<a class="btn btn-dark" href="team.html?team=${encodeURIComponent(team.slug)}">Team page</a>` : ''}
+        <a class="btn btn-dark" href="admin.html" data-admin-link ${isAdmin ? '' : 'hidden'}>Go to admin</a>
         <button class="btn btn-dark" data-logout>Log out</button>
       </div>
     </div>

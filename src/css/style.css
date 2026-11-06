@@ -1012,7 +1012,8 @@ textarea {
   cursor: pointer;
 }
 
-.file-btn[hidden] {
+.file-btn[hidden],
+.btn[hidden] {
   display: none;
 }
 
@@ -1066,33 +1067,6 @@ textarea {
 }
 
 /* TEAM PAGE */
-.team-tabs {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.team-tab {
-  padding: 10px 24px;
-  font-family: 'Archivo Black', sans-serif;
-  text-transform: uppercase;
-  text-decoration: none;
-  color: var(--jar);
-  background: #fffbe8;
-  border: 3px solid var(--ink);
-  border-top: 8px solid var(--team, var(--ink));
-  border-radius: 999px;
-  box-shadow: 3px 3px 0 var(--ink);
-}
-
-.team-tab.active {
-  background: var(--team-fill, var(--label-fill));
-  color: var(--team-text, var(--jar));
-  border-top-color: var(--ink);
-}
-
 .team-header.team-blue,
 .team-header.team-pink {
   background: var(--team-fill);
@@ -1138,13 +1112,85 @@ textarea {
   border-width: 3px;
 }
 
-.team-header .mini-fill {
+.team-header.team-blue .mini-fill,
+.team-header.team-pink .mini-fill {
   background: var(--yellow);
 }
 
 .team-goal-line {
   margin: 10px 0 18px;
   font-weight: 700;
+}
+
+/* Tug of war between the teams: each team's share of all team donations. */
+.tug-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 6px;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.tug {
+  position: relative;
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  background: var(--jar);
+  border: 4px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px #fff;
+  margin-bottom: 18px;
+}
+
+.tug-side {
+  height: 100%;
+  background: var(--team-fill);
+  transition: width 1s ease;
+}
+
+.tug-side + .tug-side {
+  border-left: 3px solid var(--ink);
+}
+
+.tug-mid {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: 50%;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--cream);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.map-legend + .member-map {
+  margin-top: 4px;
+}
+
+.map-legend-item {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 18px;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: 1rem;
+  text-transform: uppercase;
+  color: var(--team-text, var(--jar));
+  background: var(--team-fill, var(--label-fill));
+  border: 3px solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--ink);
 }
 
 .member-map {

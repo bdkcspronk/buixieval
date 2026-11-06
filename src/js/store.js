@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, onSnapshot, setDoc, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
 
 // Tikkie payment requests expire after roughly two weeks; the countdown starts when the link is saved in admin.
@@ -41,6 +41,13 @@ export const TEAMS = [
   { id: 'pink', name: 'Pink', emoji: '💗', order: 2 },
 ];
 
+// True when this user has an admins/{uid} document (users may only read their own).
+export async function isAdminUser(uid) {
+  if (!uid) return false;
+  const snap = await getDoc(doc(db, 'admins', uid)).catch(() => null);
+  return Boolean(snap?.exists());
+}
+
 const donationTime =(d) => d.confirmedAt?.seconds ?? d.createdAt?.seconds ?? Infinity;
 
 
@@ -72,7 +79,28 @@ export function computeStats({ members, donations, config }) {
   for (const d of confirmed) raisedBy[d.uid] = (raisedBy[d.uid] || 0) + d.amount;
   for (const d of pending) pendingBy[d.uid] = (pendingBy[d.uid] || 0) + d.amount;
 
-  const memberStats = members.map((m) => ({ ...m, raised: raisedBy[m.id] || 0, pending: pendingBy[m.id] || 0 }));
+  // Per member, how much went to each team ({ blue: 20, pink: 5 }); donations without a team count for the member's own team.
+  const homeTeam = Object.fromEntries(members.map((m) => [m.id, m.teamId]));
+  const byTeam = (list) => {
+    const out = {};
+    for (const d of list) {
+      const team = d.teamId || homeTeam[d.uid];
+      if (!team) continue;
+      out[d.uid] ??= {};
+      out[d.uid][team] = (out[d.uid][team] || 0) + d.amount;
+    }
+    return out;
+  };
+  const raisedByTeam = byTeam(confirmed);
+  const pendingByTeam = byTeam(pending);
+
+  const memberStats = members.map((m) => ({
+    ...m,
+    raised: raisedBy[m.id] || 0,
+    pending: pendingBy[m.id] || 0,
+    raisedByTeam: raisedByTeam[m.id] || {},
+    pendingByTeam: pendingByTeam[m.id] || {},
+  }));
   const membersById = Object.fromEntries(memberStats.map((m) => [m.id, m]));
 
   const teamStats = TEAMS.map((t) => ({

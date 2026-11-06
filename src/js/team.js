@@ -10,7 +10,6 @@ import { accountLinks } from './account.js';
 mountDotArt();
 
 const root = document.querySelector('#team-root');
-const wanted = new URLSearchParams(location.search).get('team');
 let stats = null;
 let photos = {};
 
@@ -27,53 +26,100 @@ if (!isConfigured) {
   });
 }
 
-function currentTeam() {
-  return stats.teams.find((t) => t.slug === wanted || t.id === wanted) || stats.teams[0];
+const membersOf = (team) => stats.members.filter((m) => m.teamId === team.id);
+
+// The team in front: an admin-crowned winner, otherwise the highest total (no leader on a tie or at €0).
+function leaderOf(teams) {
+  const winner = teams.find((t) => t.winner);
+  if (winner) return winner;
+  const [a, b] = [...teams].sort((x, y) => y.raised - x.raised);
+  return a && a.raised > 0 && (!b || a.raised > b.raised) ? a : null;
+}
+
+// Tug of war: each team's share of all team donations.
+function tugBar(teams) {
+  const [left, right] = teams;
+  if (!right) return '';
+  const combined = left.raised + right.raised;
+  const leftShare = combined ? (left.raised / combined) * 100 : 50;
+  return `
+      <div class="tug-label">
+        <span>${escapeHtml(left.emoji || '')} ${escapeHtml(left.name)} ${euro(left.raised)}</span>
+        <span>${euro(right.raised)} ${escapeHtml(right.name)} ${escapeHtml(right.emoji || '')}</span>
+      </div>
+      <div class="tug" role="img" aria-label="Share of all team donations: ${escapeHtml(left.name)} ${Math.round(leftShare)}%, ${escapeHtml(right.name)} ${100 - Math.round(leftShare)}%">
+        <div class="tug-side ${teamColorClass(left)}" style="width:${leftShare}%"></div>
+        <div class="tug-side ${teamColorClass(right)}" style="width:${100 - leftShare}%"></div>
+        <span class="tug-mid"></span>
+      </div>`;
 }
 
 function render() {
-  const team = currentTeam();
-  const members = stats.members.filter((m) => m.teamId === team.id);
-  const pct = Math.min(100, (team.raised / stats.teamGoal.amount) * 100);
-  document.title = `Team ${team.name} — BUIXIEVAL Out Back 2027`;
+  // The header shows (and takes the colour of) whichever team is ahead; on a tie it shows both.
+  const team = leaderOf(stats.teams);
+  const raised = team ? team.raised : stats.teams.reduce((sum, t) => sum + t.raised, 0);
+  const pending = team ? team.pending : stats.teams.reduce((sum, t) => sum + (t.pending || 0), 0);
+  const members = team ? membersOf(team) : stats.members.filter((m) => stats.teamsById[m.teamId]);
+  const best = Math.max(0, ...stats.teams.map((t) => t.raised));
+  const pct = Math.min(100, ((team ? team.raised : best) / stats.teamGoal.amount) * 100);
+  const title = team ? `Team ${team.name}` : stats.teams.map((t) => t.name).join(' vs ');
+  const tag = team?.winner ? '<span class="leader-tag winner-tag script">👑 Winners!</span>'
+    : team ? '<span class="leader-tag script">Leading!</span>' : '';
+  document.title = `Teams — BUIXIEVAL Out Back 2027`;
 
   root.innerHTML = `
-    <nav class="team-tabs" aria-label="Teams">
-      ${stats.teams.map((t) => `
-        <a class="team-tab ${teamColorClass(t)} ${t.id === team.id ? 'active' : ''}" href="team.html?team=${encodeURIComponent(t.slug)}" ${t.id === team.id ? 'aria-current="page"' : ''}>
-          ${escapeHtml(t.emoji || '')} ${escapeHtml(t.name)}
-        </a>`).join('')}
-    </nav>
     <div class="label-panel team-header ${teamColorClass(team)}">
-      ${team.winner ? '<span class="leader-tag winner-tag script">👑 Winners!</span>' : ''}
+      ${tag}
       <div class="team-header-main">
-        <span class="icon-badge">${escapeHtml(team.emoji || '⭐')}</span>
+        <span class="icon-badge">${escapeHtml(team?.emoji || '⚔️')}</span>
         <div>
-          <h1>Team ${escapeHtml(team.name)}</h1>
-          <p>${members.length} ${members.length === 1 ? 'member' : 'members'}${team.pending ? ` · ${euro(team.pending)} pending` : ''}</p>
+          <h1>${escapeHtml(title)}</h1>
+          <p>${members.length} ${members.length === 1 ? 'member' : 'members'}${pending ? ` · ${euro(pending)} pending` : ''}</p>
         </div>
-        <span class="team-header-total">${euro(team.raised)}</span>
+        <span class="team-header-total">${euro(raised)}</span>
       </div>
       <div class="mini-track big"><div class="mini-fill" style="width:${pct}%"></div></div>
-      <p class="team-goal-line">${euro(team.raised)} / ${euro(stats.teamGoal.amount)} — ${escapeHtml(stats.teamGoal.label)}</p>
+      <p class="team-goal-line">${team ? `${euro(team.raised)} / ` : 'First to '}${euro(stats.teamGoal.amount)} — ${escapeHtml(stats.teamGoal.label)}</p>
+      ${tugBar(stats.teams)}
       <div class="hero-ctas">
         <a class="btn btn-red" href="donate.html">Donate</a>
         <a class="btn btn-dark" href="signup.html">Join a team</a>
       </div>
     </div>
-    <div class="member-map ${teamColorClass(team)}" id="member-map"></div>
-    <p class="map-note script">The more you donate, the bigger your block.</p>`;
+    <div class="map-legend">
+      ${stats.teams.map((t) => `<span class="map-legend-item ${teamColorClass(t)}">${escapeHtml(t.emoji || '')} Team ${escapeHtml(t.name)} · ${membersOf(t).length}</span>`).join('')}
+    </div>
+    <div class="member-map" id="member-map"></div>
+    <p class="map-note script">Everyone fights for the same space — the more you donate, the bigger your block.</p>`;
 
   drawMap();
 }
 
+// A member gets one block per team they gave to (so giving to both teams shows as two blocks).
+// Members who haven't donated yet get a single block for their own team.
+function memberBlocks(members) {
+  return members.flatMap((m) => {
+    const teamIds = [...new Set([...Object.keys(m.raisedByTeam || {}), ...Object.keys(m.pendingByTeam || {})])]
+      .filter((id) => stats.teamsById[id]);
+    if (!teamIds.length) teamIds.push(m.teamId);
+    // Their own team first, so the photo/tone order stays stable.
+    teamIds.sort((x, y) => Number(y === m.teamId) - Number(x === m.teamId));
+    return teamIds.map((teamId) => ({
+      member: m,
+      teamId,
+      raised: m.raisedByTeam?.[teamId] || 0,
+      pending: m.pendingByTeam?.[teamId] || 0,
+    }));
+  });
+}
+
+// One shared map: every member of every team competes for the same space, coloured by team.
 function drawMap() {
   const map = root.querySelector('#member-map');
   if (!map || !stats) return;
-  const team = currentTeam();
-  const members = stats.members.filter((m) => m.teamId === team.id);
+  const blocks = memberBlocks(stats.members);
 
-  if (!members.length) {
+  if (!blocks.length) {
     map.style.height = '';
     map.innerHTML = '<div class="member-empty"><p>No members yet — be the first to join!</p></div>';
     return;
@@ -81,28 +127,29 @@ function drawMap() {
 
   const width = map.clientWidth;
   const height = width > 640
-    ? Math.round(Math.max(440, Math.min(window.innerHeight * 0.78, 820)))
-    : Math.round(Math.max(420, Math.min(960, 160 + members.length * 48)));
+    ? Math.round(Math.max(480, Math.min(window.innerHeight * 0.85, 900)))
+    : Math.round(Math.max(420, Math.min(1100, 160 + blocks.length * 44)));
   map.style.height = `${height}px`;
   const innerHeight = map.clientHeight;
 
-  const top = Math.max(0, ...members.map((m) => m.raised));
+  const top = Math.max(0, ...blocks.map((b) => b.raised));
   const floor = top ? Math.max(5, top * 0.07) : 1;
-  const leaderId = top ? members.find((m) => m.raised === top).id : null;
-  const items = members.map((m) => ({ member: m, weight: Math.max(m.raised, floor) }));
+  const leader = top ? blocks.find((b) => b.raised === top) : null;
+  const items = blocks.map((b) => ({ ...b, weight: Math.max(b.raised, floor) }));
 
   map.innerHTML = treemap(items, width, innerHeight).map(({ item, x, y, w, h }, i) => {
     const m = item.member;
+    const team = stats.teamsById[item.teamId];
     const size = Math.max(12, Math.min(44, Math.sqrt(w * h) / 6.5));
     const roomy = w > 70 && h > 54;
     const photo = isSafeImage(photos[m.id]) ? photos[m.id] : null;
     return `
-      <div class="member-block tone-${i % 3}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px" title="${escapeHtml(m.name)} — ${euro(m.raised)}">
+      <div class="member-block tone-${i % 3} ${teamColorClass(team)}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px" title="${escapeHtml(m.name)} — ${euro(item.raised)}${team ? ` for Team ${escapeHtml(team.name)}` : ''}">
         <div class="member-inner ${photo ? 'has-photo' : ''}" style="font-size:${size.toFixed(1)}px">
           ${photo ? `<img class="member-photo" src="${photo}" alt="" /><span class="photo-tint"></span>` : ''}
-          <span class="member-name">${m.id === leaderId ? '👑 ' : ''}${escapeHtml(m.name)}</span>
-          ${roomy ? `<span class="member-amount">${euro(m.raised)}</span>` : ''}
-          ${roomy && m.pending && h > 90 ? `<span class="member-pending">+${euro(m.pending)} pending</span>` : ''}
+          <span class="member-name">${leader && m.id === leader.member.id && item.teamId === leader.teamId ? '👑 ' : ''}${escapeHtml(m.name)}</span>
+          ${roomy ? `<span class="member-amount">${euro(item.raised)}</span>` : ''}
+          ${roomy && item.pending && h > 90 ? `<span class="member-pending">+${euro(item.pending)} pending</span>` : ''}
         </div>
       </div>`;
   }).join('');
