@@ -3,7 +3,7 @@ import { schedule } from './schedule-data.js';
 import { mountDotArt } from './dot-art.js';
 import { isConfigured } from './firebase.js';
 import {
-  computeDonorRewards, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
+  cancelPledge, computeDonorRewards, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
 } from './store.js';
 import { isSafeImage, resizeImage } from './photo.js';
 import { accountLinks, logOut, renderLogin, watchUser } from './account.js';
@@ -306,6 +306,18 @@ function renderSummary(member) {
             <span>${escapeHtml(teamName(d.teamId))}</span>
             <code>${escapeHtml(d.reference)}</code>
             <span class="status-pill ${d.status}">${d.status}</span>
+            ${d.status === 'pending' ? `<button type="button" class="chip danger" data-cancel="${escapeHtml(d.id)}">Cancel</button>` : ''}
           </li>`).join('')}
       </ul>` : '<p>No donations yet — every euro pushes your team up the tally!</p>'}`;
+
+  el.querySelectorAll('[data-cancel]').forEach((btn) => btn.addEventListener('click', async () => {
+    if (!confirm('Cancel this pledge? You can make a new one afterwards.')) return;
+    btn.disabled = true;
+    try {
+      await cancelPledge(btn.dataset.cancel);
+    } catch (err) {
+      btn.disabled = false;
+      alert(`That didn't work: ${err.message}`);
+    }
+  }));
 }

@@ -198,6 +198,11 @@ function makeReference() {
   return 'BX-' + Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
+// Members can cancel their own pending pledge; the rules refuse anything else.
+export function cancelPledge(id) {
+  return updateDoc(doc(db, 'donations', id), { status: 'cancelled' });
+}
+
 export async function createDonation({ uid, teamId, amount }) {
   const ref = doc(collection(db, 'donations'));
   const reference = makeReference();

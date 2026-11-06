@@ -2021,6 +2021,11 @@ textarea {
   color: var(--cream);
 }
 
+.status-pill.cancelled {
+  background: #ddd;
+  color: var(--ink);
+}
+
 .inline-form {
   display: flex;
   flex-wrap: wrap;
