@@ -42,6 +42,19 @@ if (!isConfigured) {
   watchPublic((s) => { stats = s; update(); refreshLinks(s); }, () => { root.innerHTML = closedNotice('Signing up'); });
 }
 
+// The heading above the panels: "Sign up" for newcomers, "Your account" for members. (An inline
+// script in signup.html sets the member version early, from the remembered login state.)
+const titleEl = document.querySelector('[data-page-title]');
+const introEl = document.querySelector('[data-page-intro]');
+function setPageHead(isAccount) {
+  if (!titleEl || !introEl) return;
+  const [title, intro] = isAccount
+    ? ['Your account', 'Change your name, days or picture, and see what you\'ve donated so far.']
+    : ['Sign up', 'Make an account, pick your team and tick the days you\'re coming. Everything you donate shows up on your team page.'];
+  titleEl.textContent = title;
+  introEl.textContent = intro;
+}
+
 function update() {
   if (user === undefined || !stats) return;
   const member = user ? stats.membersById[user.uid] : null;
@@ -49,6 +62,7 @@ function update() {
 
   if (next !== view) {
     view = next;
+    setPageHead(view === 'account');
     if (view === 'login') {
       renderLogin(root, { title: 'Join BUIXIEVAL', intro: 'Log in or create an account, then pick your team. Your donations are linked to your account.' });
     } else if (view === 'verify') {

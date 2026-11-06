@@ -25,15 +25,17 @@
       </div>
     </div>
   </nav>
+  <script>try{if(localStorage.getItem("bx-account")){var a=document.querySelector(".nav-links a[href=\"signup.html\"]");a.dataset.joinLabel=a.textContent;a.textContent="Account"}}catch(e){}</script>
 
   <section class="page-head">
     <div class="container">
       <div class="section-head">
-        <h1 class="diamond">Sign up</h1>
+        <h1 class="diamond" data-page-title>Sign up</h1>
       </div>
       <div class="label-panel intro-panel">
-        <p>Make an account, pick your team and tick the days you're coming. Everything you donate shows up on your team page.</p>
+        <p data-page-intro>Make an account, pick your team and tick the days you're coming. Everything you donate shows up on your team page.</p>
       </div>
+      <script>try{if(localStorage.getItem("bx-account")==="member"){document.querySelector("[data-page-title]").textContent="Your account";document.querySelector("[data-page-intro]").textContent="Change your name, days or picture, and see what you've donated so far."}}catch(e){}</script>
     </div>
   </section>
 

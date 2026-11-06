@@ -45,19 +45,41 @@ async function sendVerification(user) {
   }
 }
 
-// Relabels "Sign up" / "Join a team" links for people already in a team.
+// Relabels "Sign up" / "Join a team" links: the header link says "Account" for anyone logged in,
+// the buttons in the page only once they're in a team (until then they still need to join).
 // Returns a function to call with fresh stats after each render.
+// Firebase takes a moment to report the login on each page load, so the last known state
+// ('user' or 'member') is remembered and used until then; the inline script after each page's
+// navbar reads it too, so the header link is right from the first paint.
+const ACCOUNT_HINT = 'bx-account';
+function readHint() {
+  try { return localStorage.getItem(ACCOUNT_HINT); } catch { return null; }
+}
+function writeHint(value) {
+  try {
+    if (value) localStorage.setItem(ACCOUNT_HINT, value);
+    else localStorage.removeItem(ACCOUNT_HINT);
+  } catch { /* storage blocked: labels just update a little later */ }
+}
+
 export function accountLinks() {
-  let user = null;
+  let user; // undefined until Firebase has answered
   let stats = null;
   const apply = () => {
-    const isMember = Boolean(user && stats?.membersById[user.uid]);
+    const hint = user === undefined ? readHint() : null;
+    const loggedIn = user === undefined ? Boolean(hint) : Boolean(user);
+    const isMember = user === undefined ? hint === 'member'
+      : Boolean(user && (stats ? stats.membersById[user.uid] : readHint() === 'member'));
+    if (user === null) writeHint(null);
+    else if (user && stats) writeHint(isMember ? 'member' : 'user');
     document.querySelectorAll('a[href="signup.html"]').forEach((a) => {
       if (!a.dataset.joinLabel) a.dataset.joinLabel = a.textContent;
-      const accountLabel = a.closest('.nav-links') ? 'Account' : 'My account';
-      a.textContent = isMember ? accountLabel : a.dataset.joinLabel;
+      const inNav = Boolean(a.closest('.nav-links'));
+      const showAccount = inNav ? loggedIn : isMember;
+      a.textContent = showAccount ? (inNav ? 'Account' : 'My account') : a.dataset.joinLabel;
     });
   };
+  apply();
   watchUser((u) => { user = u; apply(); });
   return (s) => { stats = s; apply(); };
 }

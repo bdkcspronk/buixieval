@@ -25,6 +25,7 @@
       </div>
     </div>
   </nav>
+  <script>try{if(localStorage.getItem("bx-account")){var a=document.querySelector(".nav-links a[href=\"signup.html\"]");a.dataset.joinLabel=a.textContent;a.textContent="Account"}}catch(e){}</script>
 
   <section class="hero">
     <div class="container hero-grid">
@@ -108,6 +109,7 @@
           <a href="signup.html" class="btn btn-red">Sign up</a>
           <a href="donate.html" class="btn btn-dark">Donate</a>
         </div>
+        <script>try{if(localStorage.getItem("bx-account")==="member"){var a=document.querySelector(".hero-ctas a[href=\"signup.html\"]");a.dataset.joinLabel=a.textContent;a.textContent="My account"}}catch(e){}</script>
       </div>
     </div>
   </section>
@@ -177,6 +179,7 @@
         <a href="signup.html" class="btn btn-red">Join a team</a>
         <a href="donate.html" class="btn btn-dark">Donate</a>
       </div>
+      <script>try{if(localStorage.getItem("bx-account")==="member"){var a=document.querySelector(".tally-ctas a[href=\"signup.html\"]");a.dataset.joinLabel=a.textContent;a.textContent="My account"}}catch(e){}</script>
     </div>
   </section>
 
