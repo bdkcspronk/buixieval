@@ -1366,11 +1366,13 @@ textarea {
 .method-prompt {
   margin: 22px 0 10px;
   font-weight: bold;
+  text-align: center;
 }
 
 .method-chooser {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
 }
 
