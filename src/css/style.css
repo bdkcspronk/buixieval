@@ -2218,3 +2218,18 @@ textarea {
   .jar { animation: none; }
   * { transition: none !important; }
 }
+
+/* App Check's reCAPTCHA badge is hidden; the footer carries the attribution Google requires instead. */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
+.site-footer .recaptcha-note {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.site-footer .recaptcha-note a {
+  color: inherit;
+}

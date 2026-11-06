@@ -55,6 +55,10 @@ The emulator starts empty each time. To use the admin page locally: in the emula
 add a user under **Authentication**, then add a document in Firestore at `admins/<that user's UID>`.
 Log in at `/admin.html` and click **Add default teams**.
 
+Email/password accounts have to verify their email before they can join or pledge. With the
+emulator no email is sent: the verification link is printed in the emulator terminal (and shown
+in the emulator UI under **Authentication**). Open it, then click **I've clicked the link**.
+
 ## Going live
 
 1. Create a project at https://console.firebase.google.com (free Spark plan is enough).
@@ -75,6 +79,34 @@ Log in at `/admin.html` and click **Add default teams**.
 6. Log in at `/admin` and fill in your Revolut username / IBAN when the account exists.
    Goals, rewards and the two team names are editable there too. The teams themselves
    (Blue and Pink) are built in, so there's nothing to create.
+7. Turn on App Check (see below).
+
+## App Check
+
+App Check makes Firestore refuse requests that don't come from this site (scripts using the
+public config), using invisible reCAPTCHA Enterprise — now called **Google Cloud Fraud Defense**
+(classic reCAPTCHA v3 keys can no longer be created). The first 10,000 checks a month are free;
+Google Cloud may ask you to link a billing account to use it.
+
+1. Google Cloud console (same project as Firebase) → **Security → reCAPTCHA** (Fraud Defense) →
+   **Create key**: type **Website**, add your domains (`<project-id>.web.app`,
+   `<project-id>.firebaseapp.com`, any custom domain; `localhost` only if you test locally against
+   the real project), and leave the checkbox challenge **off** (score-based).
+2. Firebase console → **App Check** → **Apps** → your web app → **reCAPTCHA Enterprise** →
+   paste the key ID (the site key). There is no secret key with this provider.
+3. Put the same site key in `.env.production.local` as `VITE_RECAPTCHA_SITE_KEY` and deploy.
+4. Leave enforcement off for a few days and watch **App Check → APIs → Cloud Firestore**:
+   nearly all requests should show as verified. Then click **Enforce**.
+5. Banning someone (e.g. a spam account): create a Firestore document `bans/<UID>` by hand.
+   They can no longer join, pledge or upload a picture. Delete their member doc too if needed.
+
+The reCAPTCHA badge is hidden in CSS; the footer of each page carries Google's required
+"Protected by reCAPTCHA" line instead, so keep that line if you change the footer.
+
+Running `npm run dev` against the real project once enforcement is on: generate any UUID,
+register it under **App Check → Apps → ⋮ → Manage debug tokens**, and set it as
+`VITE_APPCHECK_DEBUG_TOKEN` in that env file. Never put a debug token in a production build.
+The emulators ignore App Check.
 
 ## Editing content
 

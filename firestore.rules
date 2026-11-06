@@ -15,24 +15,46 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    // Google accounts are verified already; email/password accounts must click the link
+    // in the verification email before they can join, upload a picture or pledge.
+    function verified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    // Admins add bans/{uid} by hand in the Firebase console. Deleting a member alone
+    // isn't enough: they could just sign up again with the same account.
+    function notBanned() {
+      return !exists(/databases/$(database)/documents/bans/$(request.auth.uid));
+    }
+
     // The two teams are fixed in the code (TEAMS in src/js/store.js).
     function validTeam(id) {
       return id in ['blue', 'pink'];
     }
 
+    // No control characters / newlines, and no leading = + - @ (spreadsheet formula
+    // injection when admins open the member CSV export).
     function validName(n) {
-      return n is string && n.trim().size() > 0 && n.size() <= 60;
+      return n is string && n.trim().size() > 0 && n.size() <= 60
+        && !n.matches('(?s).*[[:cntrl:]].*')
+        && !n.trim().matches('(?s)[=+@-].*');
     }
 
+    // No duplicates, otherwise one member counts as seven people on Monday.
     function validDays(d) {
       return d is list && d.size() > 0 && d.size() <= 7
-        && d.hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']);
+        && d.hasOnly(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
+        && d.toSet().size() == d.size();
     }
 
     // Admins are added by hand in the Firebase console: admins/{uid}
     match /admins/{uid} {
       allow read: if isSelf(uid);
       allow write: if false;
+    }
+
+    match /bans/{uid} {
+      allow read, write: if false;
     }
 
     match /config/public {
@@ -45,6 +67,8 @@ service cloud.firestore {
     match /members/{uid} {
       allow read: if true;
       allow create: if isSelf(uid)
+        && verified()
+        && notBanned()
         && request.resource.data.keys().hasOnly(['name', 'teamId', 'days', 'createdAt'])
         && request.resource.data.keys().hasAll(['name', 'teamId', 'days', 'createdAt'])
         && validName(request.resource.data.name)
@@ -63,7 +87,9 @@ service cloud.firestore {
     match /memberContacts/{uid} {
       allow read: if isSelf(uid) || isAdmin();
       allow create: if isSelf(uid)
+        && verified()
         && request.resource.data.keys().hasOnly(['email'])
+        && request.resource.data.keys().hasAll(['email'])
         && request.resource.data.email == request.auth.token.email;
       allow update, delete: if isAdmin();
     }
@@ -72,6 +98,8 @@ service cloud.firestore {
     match /memberPhotos/{uid} {
       allow read: if true;
       allow create, update: if isSelf(uid)
+        && verified()
+        && notBanned()
         && exists(/databases/$(database)/documents/members/$(uid))
         && request.resource.data.keys().hasOnly(['image', 'updatedAt'])
         && request.resource.data.keys().hasAll(['image', 'updatedAt'])
@@ -82,23 +110,43 @@ service cloud.firestore {
       allow delete: if isSelf(uid) || isAdmin();
     }
 
+    // One doc per member, written in the same batch as each pledge, so a member can
+    // pledge at most once every 30 seconds.
+    match /pledgeThrottle/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['lastPledgeAt'])
+        && request.resource.data.lastPledgeAt == request.time;
+      allow update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['lastPledgeAt'])
+        && request.resource.data.lastPledgeAt == request.time
+        && request.time > resource.data.lastPledgeAt + duration.value(30, 's');
+      allow delete: if false;
+    }
+
     // Donations. Members can only pledge pending donations in their own name;
     // only admins can confirm or reject.
+    // The document id IS the payment reference (BX-XXXXX). That makes references unique,
+    // so nobody can copy someone else's public reference and claim their payment, and it
+    // keeps attacker-chosen ids (rendered on the admin page) to a harmless alphabet.
     match /donations/{id} {
       allow read: if true;
       allow create: if signedIn()
+        && verified()
+        && notBanned()
         && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && id.matches('^BX-[A-Z0-9]{5}$')
         && request.resource.data.keys().hasOnly(['uid', 'teamId', 'amount', 'status', 'reference', 'createdAt'])
         && request.resource.data.keys().hasAll(['uid', 'teamId', 'amount', 'status', 'reference', 'createdAt'])
+        && request.resource.data.reference == id
         && request.resource.data.uid == request.auth.uid
         && (request.resource.data.teamId == null || validTeam(request.resource.data.teamId))
         && request.resource.data.amount is int
         && request.resource.data.amount >= 1
         && request.resource.data.amount <= 1000
         && request.resource.data.status == 'pending'
-        && request.resource.data.reference is string
-        && request.resource.data.reference.matches('^BX-[A-Z0-9]{5}$')
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/pledgeThrottle/$(request.auth.uid)).data.lastPledgeAt == request.time;
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'confirmedAt'])
         && request.resource.data.status in ['pending', 'confirmed', 'rejected'];

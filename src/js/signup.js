@@ -6,7 +6,7 @@ import {
   cancelPledge, computeDonorRewards, isAdminUser, joinAsMember, removeMemberPhoto, setMemberPhoto, updateMember, watchPhotos, watchPublic,
 } from './store.js';
 import { isSafeImage, resizeImage } from './photo.js';
-import { accountLinks, logOut, renderLogin, watchUser } from './account.js';
+import { accountLinks, justCreatedAccount, logOut, needsVerification, renderLogin, renderVerify, watchUser } from './account.js';
 import { closedNotice, escapeHtml, euro, teamColorClass } from './ui.js';
 
 mountDotArt();
@@ -44,12 +44,14 @@ if (!isConfigured) {
 function update() {
   if (user === undefined || !stats) return;
   const member = user ? stats.membersById[user.uid] : null;
-  const next = !user ? 'login' : member ? 'account' : 'join';
+  const next = !user ? 'login' : needsVerification(user) ? 'verify' : member ? 'account' : 'join';
 
   if (next !== view) {
     view = next;
     if (view === 'login') {
       renderLogin(root, { title: 'Join BUIXIEVAL', intro: 'Log in or create an account, then pick your team. Your donations are linked to your account.' });
+    } else if (view === 'verify') {
+      renderVerify(root, user, { justCreated: justCreatedAccount });
     } else if (view === 'join') {
       renderJoin();
     } else {

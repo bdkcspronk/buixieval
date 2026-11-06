@@ -231,16 +231,30 @@ export function cancelPledge(id) {
   return updateDoc(doc(db, 'donations', id), { status: 'cancelled' });
 }
 
+// The document id is the payment reference, so references are unique (the rules insist).
+// The pledgeThrottle write in the same batch is what limits a member to one pledge per 30 s.
 export async function createDonation({ uid, teamId, amount }) {
-  const ref = doc(collection(db, 'donations'));
-  const reference = makeReference();
-  await setDoc(ref, {
-    uid,
-    teamId: teamId || null,
-    amount,
-    status: 'pending',
-    reference,
-    createdAt: serverTimestamp(),
-  });
-  return { id: ref.id, reference };
+  let lastError;
+  // A refused write can be a (very unlikely) reference collision, so try a few fresh ones.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const reference = makeReference();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'pledgeThrottle', uid), { lastPledgeAt: serverTimestamp() });
+    batch.set(doc(db, 'donations', reference), {
+      uid,
+      teamId: teamId || null,
+      amount,
+      status: 'pending',
+      reference,
+      createdAt: serverTimestamp(),
+    });
+    try {
+      await batch.commit();
+      return { id: reference, reference };
+    } catch (err) {
+      lastError = err;
+      if (err?.code !== 'permission-denied') break;
+    }
+  }
+  throw lastError;
 }

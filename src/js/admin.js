@@ -192,8 +192,8 @@ function renderDashboard(user) {
         `${escapeHtml(realName(d))}<br /><small>${escapeHtml(email(d.uid))}</small>`,
         escapeHtml(teamName(d.teamId)),
         `<strong>${euro(d.amount)}</strong>`,
-        `<button class="chip ok" data-action="status" data-status="confirmed" data-id="${d.id}">Confirm</button>
-         <button class="chip" data-action="status" data-status="rejected" data-id="${d.id}">Reject</button>`,
+        `<button class="chip ok" data-action="status" data-status="confirmed" data-id="${escapeHtml(d.id)}">Confirm</button>
+         <button class="chip" data-action="status" data-status="rejected" data-id="${escapeHtml(d.id)}">Reject</button>`,
       ]),
     ) : '<p>Nothing waiting. 🎉</p>';
 
@@ -207,8 +207,8 @@ function renderDashboard(user) {
         escapeHtml(teamName(d.teamId)),
         euro(d.amount),
         `<span class="status-pill ${d.status}">${d.status}</span>`,
-        `<button class="chip" data-action="status" data-status="pending" data-id="${d.id}">Back to pending</button>
-         <button class="chip danger" data-action="delete-donation" data-id="${d.id}">Delete</button>`,
+        `<button class="chip" data-action="status" data-status="pending" data-id="${escapeHtml(d.id)}">Back to pending</button>
+         <button class="chip danger" data-action="delete-donation" data-id="${escapeHtml(d.id)}">Delete</button>`,
       ]),
     ) : '<p>No confirmed or rejected donations yet.</p>';
 
@@ -229,17 +229,17 @@ function renderDashboard(user) {
       members.map((m) => [
         formatDate(m.createdAt),
         isSafeImage(data.memberPhotos[m.id]?.image)
-          ? `<span class="admin-photo"><img src="${data.memberPhotos[m.id].image}" alt="" /><button class="chip danger photo-x" data-action="remove-photo" data-id="${m.id}" title="Remove picture" aria-label="Remove picture of ${escapeHtml(m.name)}">✕</button></span>`
+          ? `<span class="admin-photo"><img src="${data.memberPhotos[m.id].image}" alt="" /><button class="chip danger photo-x" data-action="remove-photo" data-id="${escapeHtml(m.id)}" title="Remove picture" aria-label="Remove picture of ${escapeHtml(m.name)}">✕</button></span>`
           : '—',
         escapeHtml(m.name),
         escapeHtml(email(m.id) || '—'),
-        `<select class="move-team ${stats.teamsById[m.teamId] ? '' : 'no-team'}" data-id="${m.id}" aria-label="Team for ${escapeHtml(m.name)}">
+        `<select class="move-team ${stats.teamsById[m.teamId] ? '' : 'no-team'}" data-id="${escapeHtml(m.id)}" aria-label="Team for ${escapeHtml(m.name)}">
           ${stats.teamsById[m.teamId] ? '' : '<option value="" selected disabled>No team — pick one</option>'}
           ${stats.teams.map((t) => `<option value="${t.id}" ${t.id === m.teamId ? 'selected' : ''}>${escapeHtml(t.name)}</option>`).join('')}
         </select>`,
         euro(m.raised),
         (m.days || []).map((k) => dayShort[k] || k).join(', '),
-        `<button class="chip danger" data-action="delete-member" data-id="${m.id}">Delete</button>`,
+        `<button class="chip danger" data-action="delete-member" data-id="${escapeHtml(m.id)}">Delete</button>`,
       ]),
     ) : '<p>No members yet.</p>';
   }
@@ -388,7 +388,8 @@ function renderDashboard(user) {
 
   function exportMembers() {
     const stats = computeStats(data);
-    const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    // A leading = + - @ would run as a formula when the CSV is opened in a spreadsheet.
+    const csvCell = (v) => `"${String(v ?? '').replace(/^\s*[=+\-@]/, "'$&").replace(/"/g, '""')}"`;
     const rows = [['Name', 'Email', 'Team', 'Donated (confirmed)', ...schedule.map((ev) => ev.day)]];
     for (const m of stats.members) {
       rows.push([

@@ -2,7 +2,7 @@ import '../css/style.css';
 import { mountDotArt } from './dot-art.js';
 import { isConfigured } from './firebase.js';
 import { watchPublic, createDonation } from './store.js';
-import { accountLinks, logOut, renderLogin, watchUser } from './account.js';
+import { accountLinks, justCreatedAccount, logOut, needsVerification, renderLogin, renderVerify, watchUser } from './account.js';
 import { closedNotice, escapeHtml, euro, revolutLink } from './ui.js';
 
 mountDotArt();
@@ -26,7 +26,7 @@ if (!isConfigured) {
 function update() {
   if (user === undefined || !stats || view === 'paid') return;
   const member = user ? stats.membersById[user.uid] : null;
-  const next = !user ? 'login' : member ? 'form' : 'join';
+  const next = !user ? 'login' : needsVerification(user) ? 'verify' : member ? 'form' : 'join';
   if (next === view) return;
   view = next;
 
@@ -36,6 +36,9 @@ function update() {
       title: 'Log in to donate',
       intro: 'Donations are linked to your account, so everything you give adds up on your team page.',
     });
+  } else if (view === 'verify') {
+    root.innerHTML = `${rewardsPanel(stats.rewards)}<div id="login-slot"></div>`;
+    renderVerify(root.querySelector('#login-slot'), user, { justCreated: justCreatedAccount });
   } else if (view === 'join') {
     root.innerHTML = `
       ${rewardsPanel(stats.rewards)}
@@ -143,7 +146,7 @@ function renderForm(member) {
         showPayment({ name: member.name, amount, reference, payment: stats.payment });
       } catch {
         button.disabled = false;
-        status.textContent = 'Something went wrong — please try again.';
+        status.textContent = 'Something went wrong — wait half a minute and try again.';
         status.className = 'form-status error';
       }
     });
