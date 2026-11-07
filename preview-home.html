@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BUIXIEVAL — Out Back 2027 (preview)</title>
+  <link rel="icon" href="/images/sticker-256.jpg" />
+  <style>
+    /* ---------- the scene ---------- */
+    .doc-hero {
+      position: relative;
+      height: 100svh;
+      min-height: 580px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #2f5f96 0%, #5b8bb8 22%, #c9a98a 48%, #f0b46a 60%, #f7cf86 66%);
+      isolation: isolate;
+    }
+    .layer { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; pointer-events: none; will-change: transform; }
+    .layer svg { display: block; width: 100%; height: 100%; }
+    .sun {
+      position: absolute; left: 92%; top: 56%; width: 130px; height: 130px; margin: -65px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff7d6 0 34%, #ffe39a 35%, rgba(255, 210, 120, 0.55) 48%, rgba(255, 190, 100, 0) 72%);
+      box-shadow: 0 0 120px 60px rgba(255, 196, 110, 0.35);
+    }
+    .layer-far { height: 100%; }
+    .layer-mid { height: 100%; }
+    .grass { position: absolute; left: 0; bottom: 0; width: 100%; pointer-events: none; }
+    .grass-back { height: 24%; z-index: 2; }
+    .grass-front { height: 26%; z-index: 6; }
+    .grass svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .grass g { transform-box: fill-box; transform-origin: 50% 100%; animation: sway var(--d, 5s) ease-in-out infinite alternate; animation-delay: var(--dl, 0s); }
+    .still-grass .grass g { animation: none; }
+    @keyframes sway { from { transform: skewX(var(--a, 3deg)); } to { transform: skewX(calc(var(--a, 3deg) * -0.6)); } }
+
+    .critters { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+    .critters .sky-birds { position: absolute; inset: 0; z-index: 1; }
+    .critter { position: absolute; top: 0; left: 0; will-change: transform; }
+    .critter-sprite { width: 100%; background-repeat: no-repeat; filter: drop-shadow(0 5px 4px rgba(40, 20, 10, 0.3)); }
+    .critter.far .critter-sprite { filter: saturate(0.8) brightness(0.95) drop-shadow(0 3px 2px rgba(40, 20, 10, 0.25)); }
+
+    /* documentary chrome */
+    .vignette { position: absolute; inset: 0; pointer-events: none; z-index: 8; }
+    .vignette { background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(20, 8, 4, 0.55) 100%); }
+    .letterbox { position: absolute; left: 0; right: 0; height: 5.5vh; background: #0d0806; z-index: 9; transition: transform 1.4s cubic-bezier(.2,.7,.2,1) .2s; }
+    .letterbox.top { top: 0; transform: translateY(-100%); }
+    .letterbox.bottom { bottom: 0; transform: translateY(100%); }
+    .doc-hero.is-rolling .letterbox { transform: none; }
+
+    .doc-nav { position: absolute; top: 0; left: 0; right: 0; z-index: 12; padding: 0; }
+    .doc-nav .container { display: flex; align-items: center; justify-content: space-between; height: 5.5vh; min-height: 46px; }
+    .doc-nav .brand img { border: 2px solid #0d0806; }
+    .doc-nav .brand span { color: #f3e7c4; font-size: 1rem; letter-spacing: 0.12em; }
+    .doc-nav .brand { display: flex; align-items: center; gap: 10px; color: #f3e7c4; text-decoration: none; font-family: 'Archivo Black', sans-serif; letter-spacing: 0.08em; font-size: 0.95rem; }
+    .doc-nav .brand img { width: 30px; height: 30px; border-radius: 50%; }
+    .doc-nav .links { display: flex; gap: 22px; }
+    .doc-nav .links a { color: rgba(243, 231, 196, 0.8); text-decoration: none; font-size: 0.82rem; letter-spacing: 0.18em; text-transform: uppercase; }
+    .doc-nav .links a:hover, .doc-nav .links a.active { color: #ffd60a; }
+
+    .title-card {
+      position: absolute; z-index: 10; left: 0; right: 0; top: 17%;
+      animation: fade-up 1.6s ease 0.9s both;
+      text-shadow: 0 2px 18px rgba(30, 12, 4, 0.45);
+    }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(14px); } }
+    .title-card .kicker { color: #fff3d0; font-size: 0.78rem; letter-spacing: 0.42em; text-transform: uppercase; margin: 0 0 14px; }
+    .title-card h1 { margin: 0; font-family: 'Archivo Black', sans-serif; font-weight: 400; color: #fff8e6; font-size: clamp(2.8rem, 9vw, 7rem); line-height: 0.92; letter-spacing: 0.02em; }
+    .title-card .subtitle { margin: 6px 0 0; font-family: 'Calligraffitti', cursive; color: #ffd60a; font-size: clamp(1.6rem, 4vw, 2.8rem); font-weight: 700; }
+    .title-card .tagline { margin: 14px 0 0; max-width: 34em; color: #fff3d0; font-size: clamp(0.95rem, 1.6vw, 1.1rem); line-height: 1.45; }
+    .title-card .premiere { margin: 22px 0 0; color: #fff3d0; font-size: 0.9rem; letter-spacing: 0.22em; text-transform: uppercase; }
+    .title-card .premiere b { font-family: 'Archivo Black', sans-serif; font-weight: 400; letter-spacing: 0.06em; color: #fff; font-variant-numeric: tabular-nums; }
+    .title-card .hero-ctas { margin-top: 26px; display: flex; gap: 14px; flex-wrap: wrap; }
+
+    /* lower-third species caption */
+    .lower-third {
+      position: absolute; z-index: 11; left: max(16px, calc((100vw - 1120px) / 2 + 16px)); bottom: calc(5.5vh + 26px);
+      display: flex; align-items: stretch; gap: 14px;
+      opacity: 0; transform: translateX(-16px); transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .lower-third.show { opacity: 1; transform: none; }
+    .lower-third .bar { width: 5px; background: #ffd60a; }
+    .lower-third .common { display: block; color: #fff; font-family: 'Archivo Black', sans-serif; font-size: 1.15rem; letter-spacing: 0.04em; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+    .lower-third .latin { display: block; color: #f3e7c4; font-style: italic; font-size: 0.92rem; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+    .timecode { position: absolute; z-index: 11; right: max(16px, calc((100vw - 1120px) / 2 + 16px)); bottom: calc(5.5vh + 30px); color: rgba(255, 243, 208, 0.75); font: 500 0.78rem/1 'Rubik', sans-serif; letter-spacing: 0.25em; }
+    .scroll-cue { position: absolute; z-index: 11; left: 50%; bottom: calc(5.5vh + 22px); transform: translateX(-50%); color: rgba(255, 243, 208, 0.8); font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; text-align: center; }
+    .scroll-cue::after { content: ''; display: block; margin: 8px auto 0; width: 1px; height: 26px; background: currentColor; animation: cue 1.8s ease-in-out infinite; transform-origin: top; }
+    @keyframes cue { 0%, 100% { transform: scaleY(0.3); opacity: .4; } 50% { transform: scaleY(1); opacity: 1; } }
+
+    /* ---------- below the scene ---------- */
+    .doc-hero ~ section { background: linear-gradient(180deg, #2a1d15, #22170f); }
+    .episodes-head { text-align: center; margin: 70px 0 30px; color: #f3e7c4; }
+    .episodes-head .kicker { font-size: 0.78rem; letter-spacing: 0.42em; text-transform: uppercase; opacity: .8; }
+    .episodes-head h2 { font-family: 'Archivo Black', sans-serif; font-weight: 400; font-size: clamp(2rem, 5vw, 3.2rem); margin: 8px 0 0; color: #fff8e6; }
+    .episodes { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+    .episode { background: #160d09; border: 1px solid rgba(243, 231, 196, 0.15); border-radius: 6px; overflow: hidden; color: #f3e7c4; }
+    .episode .still { height: 120px; display: grid; place-items: center; font-size: 3rem; background: linear-gradient(180deg, #5b8bb8, #f0b46a 70%, #a8461f 71%, #7a3a1c); position: relative; }
+    .episode .still::after { content: attr(data-ep); position: absolute; left: 10px; top: 8px; font: 700 0.7rem 'Rubik', sans-serif; letter-spacing: 0.25em; color: #fff; background: rgba(13, 8, 6, 0.7); padding: 4px 8px; border-radius: 3px; }
+    .episode .body { padding: 14px 16px 18px; }
+    .episode .when { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: #ffd60a; }
+    .episode h3 { margin: 6px 0 6px; font-family: 'Archivo Black', sans-serif; font-weight: 400; font-size: 1.15rem; color: #fff8e6; }
+    .episode p { margin: 0; font-size: 0.92rem; line-height: 1.45; opacity: 0.85; }
+    .preview-note { position: fixed; right: 12px; top: 12px; z-index: 2000; background: #e0121b; color: #fff; font: 700 0.7rem 'Rubik', sans-serif; letter-spacing: 0.15em; padding: 6px 10px; border-radius: 4px; }
+
+    @media (max-width: 640px) {
+      .doc-nav .links { display: none; }
+      .title-card { top: 13%; }
+      .sun { left: 82%; top: 58%; width: 80px; height: 80px; margin: -40px; }
+      .timecode, .scroll-cue { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .grass g { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-note">PREVIEW</div>
+
+  <section class="doc-hero" id="scene">
+    <div class="sun" data-depth="0.4"></div>
+
+    <!-- far: hazy ranges and the big rock -->
+    <div class="layer layer-far" data-depth="0.3">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="rock-lit" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#e07a3e" /><stop offset="0.55" stop-color="#cf6534" /><stop offset="1" stop-color="#a94a26" />
+          </linearGradient>
+          <linearGradient id="rock-shade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffb070" stop-opacity="0.35" /><stop offset="0.25" stop-color="#ffb070" stop-opacity="0" /><stop offset="0.8" stop-color="#5a1e0c" stop-opacity="0" /><stop offset="1" stop-color="#5a1e0c" stop-opacity="0.35" />
+          </linearGradient>
+          <clipPath id="rock-clip"><path id="rock-clip-path" /></clipPath>
+          <filter id="rock-soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.4" /></filter>
+          <linearGradient id="haze" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f7cf86" stop-opacity="0" /><stop offset="1" stop-color="#f7cf86" stop-opacity="0.65" />
+          </linearGradient>
+        </defs>
+        <path d="M0 610 L60 585 L140 588 L170 560 L330 556 L360 582 L470 590 L520 575 L640 578 L700 600 L1600 600 L1600 640 L0 640 Z" fill="#b98a85" opacity="0.75" />
+        <path d="M1380 600 L1410 572 L1500 566 L1530 580 L1600 578 L1600 640 L1380 640 Z" fill="#b98a85" opacity="0.7" />
+        <g id="rock"></g>
+        <rect x="0" y="560" width="1600" height="60" fill="url(#haze)" />
+        <rect x="0" y="618" width="1600" height="282" fill="#d98a4a" />
+      </svg>
+    </div>
+
+    <!-- mid: red plains, spinifex, ghost gums -->
+    <div class="layer layer-mid" data-depth="0.12">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+        <defs>
+          <linearGradient id="plain" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#d98a4a" /><stop offset="0.35" stop-color="#c0602e" /><stop offset="1" stop-color="#7a361b" />
+          </linearGradient>
+        </defs>
+        <path d="M0 606 Q 400 598 800 606 T 1600 604 L1600 900 L0 900 Z" fill="url(#plain)" />
+        <g id="spinifex"></g>
+        <!-- distant small trees -->
+        <g fill="#6d6a34" opacity="0.85">
+          <rect x="452" y="585" width="3" height="22" fill="#e9e0cc" /><ellipse cx="453" cy="584" rx="16" ry="9" />
+          <rect x="826" y="590" width="2" height="16" fill="#e9e0cc" /><ellipse cx="827" cy="589" rx="11" ry="6" />
+          <rect x="1452" y="582" width="3" height="26" fill="#e9e0cc" /><ellipse cx="1453" cy="580" rx="18" ry="10" />
+        </g>
+        <!-- big ghost gum framing the left -->
+        <g>
+          <path d="M150 760 C 160 690 150 620 120 540 C 105 500 80 470 60 450 M135 610 C 170 560 220 520 260 505 M128 520 C 150 470 165 430 160 390 M150 680 C 190 650 240 640 300 640" stroke="#efe6d2" stroke-width="18" stroke-linecap="round" fill="none" />
+          <path d="M150 760 C 160 690 150 620 120 540" stroke="#d6cbb3" stroke-width="6" fill="none" transform="translate(6 0)" />
+          <g fill="#5f6a2e">
+            <ellipse cx="60" cy="430" rx="80" ry="38" /><ellipse cx="150" cy="380" rx="70" ry="34" /><ellipse cx="260" cy="490" rx="78" ry="32" />
+            <ellipse cx="300" cy="628" rx="60" ry="24" /><ellipse cx="20" cy="470" rx="60" ry="30" />
+          </g>
+          <g fill="#7b8a3c">
+            <ellipse cx="80" cy="418" rx="50" ry="22" /><ellipse cx="165" cy="368" rx="44" ry="20" /><ellipse cx="275" cy="478" rx="48" ry="18" /><ellipse cx="312" cy="618" rx="36" ry="14" />
+          </g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grass grass-back" data-grass="back"></div>
+    <div class="critters" id="critters"><div class="sky-birds"></div></div>
+    <div class="grass grass-front" data-grass="front"></div>
+
+    <div class="vignette"></div>
+    <div class="letterbox top"></div>
+    <div class="letterbox bottom"></div>
+
+    <nav class="doc-nav">
+      <div class="container">
+        <a class="brand" href="index.html"><img src="/images/sticker-256.jpg" alt="" /><span>BUIXIEVAL</span></a>
+        <div class="links">
+          <a href="index.html" class="active">Home</a>
+          <a href="events.html">Events</a>
+          <a href="team.html">Teams</a>
+          <a href="signup.html">Sign up</a>
+          <a href="donate.html">Donate</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="title-card">
+      <div class="container">
+        <p class="kicker">12–18 April 2027</p>
+        <h1>BUIXIEVAL</h1>
+        <p class="subtitle">An outback week in Groningen</p>
+        <p class="tagline">While Buixie is abroad, the rest of us celebrate at home: a week of six outback-themed events in and around the Francken room.</p>
+        <p class="premiere">Kicks off in <b id="premiere">--d --:--:--</b></p>
+        <div class="hero-ctas">
+          <a href="signup.html" class="btn btn-red">Sign up</a>
+          <a href="donate.html" class="btn btn-dark">Donate</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="lower-third" id="lower-third"><span class="bar"></span><span><span class="common"></span><span class="latin"></span></span></div>
+    <div class="timecode" id="timecode">00:00:00:00</div>
+    <div class="scroll-cue">The programme</div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="episodes-head">
+        <div class="kicker">Seven days · six events · all in Groningen</div>
+        <h2>Festival programme</h2>
+      </div>
+      <div class="episodes" id="episodes"></div>
+    </div>
+  </section>
+
+  <section id="tally">
+    <div class="container">
+      <div class="section-head">
+        <h2 class="diamond">The race is on</h2><br />
+        <span class="sub-pill script">Live team &amp; donation tally</span>
+      </div>
+      <div id="tally-root"><div class="jar-panel notice-panel"><p class="script">Loading the tally…</p></div></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container">
+      <img class="footer-sticker" src="/images/sticker-256.jpg" alt="BUIXIEVAL Out back 2027 sticker" width="96" height="96" />
+      <p class="script">See you in the outback!</p>
+      <p class="small">BUIXIEVAL · 12–18 April 2027 · Francken room, Groningen</p>
+    </div>
+  </footer>
+
+  <script type="module">
+    import './src/css/style.css';
+    import { schedule } from './src/js/schedule-data.js';
+    import { isConfigured } from './src/js/firebase.js';
+    import { watchPublic } from './src/js/store.js';
+    import { renderTally } from './src/js/tally.js';
+    import { closedNotice } from './src/js/ui.js';
+
+    const scene = document.querySelector('#scene');
+    const rand = (a, b) => a + Math.random() * (b - a);
+    requestAnimationFrame(() => scene.classList.add('is-rolling'));
+
+    // ---------- spinifex clumps on the plain ----------
+    // ---------- the big rock: long, flat-topped, steep rounded ends, deep vertical gullies ----------
+    (function drawRock() {
+      const x0 = 400, width = 900, base = 614, height = 168;
+      const smooth = (a, b, t) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
+      // Rounded dome ends (the left one a little longer), a crest that rolls gently.
+      const top = (t) => {
+        const ends = smooth(0, 0.17, t) * (1 - smooth(0.85, 1, t));
+        const roll = 0.88 + 0.08 * Math.sin(t * Math.PI * 1.1 + 0.2) + 0.03 * Math.sin(t * 14 + 1) + 0.01 * Math.sin(t * 47);
+        return base - height * Math.pow(ends, 0.7) * roll;
+      };
+      const N = 180;
+      let outline = `M${x0} ${base}`;
+      for (let i = 0; i <= N; i++) outline += `L${(x0 + (width * i) / N).toFixed(1)} ${top(i / N).toFixed(1)}`;
+      outline += `L${x0 + width} ${base}Z`;
+      document.querySelector('#rock-clip-path').setAttribute('d', outline);
+
+      const rnd = (() => { let seed = 11; return () => ((seed = (seed * 16807) % 2147483647) / 2147483647); })(); // same rock every load
+      // Gullies: erosion grooves that wander, taper, cluster in bunches and sometimes fork — not evenly spaced.
+      let gullies = '', lips = '', streaks = '';
+      // Turn a wandering centreline into a tapered ribbon: hairline at the top, widest low down, fading out.
+      const ribbon = (pts, wMax) => {
+        const L = [], R = [];
+        pts.forEach(([x, y], i) => {
+          const k = i / (pts.length - 1);
+          const w = wMax * Math.pow(Math.sin(Math.PI * Math.min(1, k * 0.8 + 0.08)), 0.8) * (0.75 + rnd() * 0.5);
+          L.push(`${(x - w / 2).toFixed(1)} ${y.toFixed(1)}`);
+          R.unshift(`${(x + w / 2).toFixed(1)} ${y.toFixed(1)}`);
+        });
+        return `M${L.join(' L')} L${R.join(' L')}Z`;
+      };
+      // A centreline that drifts sideways in a random walk, with an overall lean outwards toward the ends.
+      const wander = (x, y, len, lean) => {
+        const pts = [[x, y]], steps = Math.max(4, Math.round(len / 9));
+        let dx = 0;
+        for (let s = 1; s <= steps; s++) {
+          dx = dx * 0.7 + (rnd() - 0.5) * 3.2;
+          x += lean / steps + dx; y += len / steps;
+          pts.push([x, y]);
+        }
+        return pts;
+      };
+      const groove = (pts, w, op) => {
+        const d = ribbon(pts, w);
+        gullies += `<path d="${d}" fill="#6a230f" opacity="${op.toFixed(2)}"/>`;
+        lips += `<path d="${d}" transform="translate(${(-w * 0.6).toFixed(1)} 0.5)" fill="#f6a86c" opacity="${(op * 0.45).toFixed(2)}"/>`;
+      };
+      // Place gullies in uneven bunches: deep, close-set groups with smoother bare stretches between.
+      let t = 0.05;
+      while (t < 0.95) {
+        const bunch = 1 + Math.floor(rnd() * rnd() * 6);
+        for (let j = 0; j < bunch && t < 0.95; j++) {
+          const x = x0 + width * t;
+          const crest = top(t);
+          const r = rnd();
+          const y = crest + (r < 0.55 ? -3 : (base - crest) * (r < 0.85 ? rnd() * 0.25 : 0.25 + rnd() * 0.35));
+          const deep = rnd() < 0.3;
+          const len = (base - y) * (deep ? 0.75 + rnd() * 0.25 : 0.2 + rnd() * 0.55);
+          const lean = (t - 0.5) * 60 + (rnd() - 0.5) * 22;
+          const w = (deep ? 7 + rnd() * 7 : 2 + rnd() * 5) * (0.8 + t * 0.5);
+          const op = (deep ? 0.45 : 0.18) + t * 0.25 + rnd() * 0.15;
+          const pts = wander(x, y, len, lean);
+          groove(pts, w, op);
+          // Deep gullies collect a tributary or two joining from the side.
+          if (deep && rnd() < 0.7) {
+            const at = pts[Math.floor(pts.length * (0.25 + rnd() * 0.35))];
+            const side = rnd() < 0.5 ? -1 : 1;
+            const blen = len * (0.2 + rnd() * 0.25);
+            const branch = wander(at[0] + side * blen * 0.6, at[1] - blen, blen, -side * blen * 0.6);
+            branch[branch.length - 1] = at;
+            groove(branch, w * 0.45, op * 0.8);
+          }
+          t += 0.004 + rnd() * 0.012; // tight spacing inside a bunch
+        }
+        t += 0.02 + rnd() * rnd() * 0.08; // irregular gaps between bunches
+      }
+      // Faint broken streaks of the steeply tilted rock layers, so the bare stretches aren't blank.
+      for (let i = 0; i < 70; i++) {
+        const t = 0.08 + rnd() * 0.84;
+        const crest = top(t);
+        const y = crest + 6 + rnd() * (base - crest) * 0.6;
+        const len = 8 + rnd() * 30;
+        const x = x0 + width * t;
+        const lean = (t - 0.5) * 12;
+        streaks += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} l${lean.toFixed(1)} ${len.toFixed(1)}" stroke="${rnd() < 0.5 ? '#8a3518' : '#f0995c'}" stroke-width="${(0.6 + rnd() * 1.2).toFixed(1)}" opacity="${(0.12 + rnd() * 0.15).toFixed(2)}"/>`;
+      }
+      let caves = '';
+      for (let i = 0; i < 7; i++) {
+        const t = 0.12 + rnd() * 0.76;
+        caves += `<ellipse cx="${(x0 + width * t).toFixed(1)}" cy="${(base - 10 - rnd() * 22).toFixed(1)}" rx="${(5 + rnd() * 10).toFixed(1)}" ry="${(2.5 + rnd() * 4).toFixed(1)}" fill="#4a160a" opacity="0.45"/>`;
+      }
+      // The right end turns away from the light.
+      const shadeEnd = `<path d="M${x0 + width * 0.8} ${base} C ${x0 + width * 0.85} ${base - 110}, ${x0 + width * 0.9} ${top(0.9) - 10}, ${x0 + width} ${top(0.98)} L${x0 + width} ${base}Z" fill="#7a2c14" opacity="0.4" filter="url(#rock-soft)"/>`;
+      document.querySelector('#rock').innerHTML =
+        `<path d="${outline}" fill="url(#rock-lit)"/>` +
+        `<g clip-path="url(#rock-clip)">${shadeEnd}${streaks}<g filter="url(#rock-soft)">${lips}${gullies}${caves}</g><rect x="${x0}" y="${base - height - 20}" width="${width}" height="${height + 20}" fill="url(#rock-shade)"/></g>` +
+        `<path d="${outline.replace(/L[\d.]+ 614Z$/, '')}" fill="none" stroke="#f6a568" stroke-width="2" opacity="0.45"/>`;
+
+      // Narrow screens crop the scene to its middle; shrink the rock so its whole shape still fits.
+      const rock = document.querySelector('#rock');
+      const fit = () => {
+        const visible = 900 * (scene.clientWidth / scene.clientHeight); // viewBox units across the screen
+        const k = Math.min(1, (visible * 0.9) / width);
+        const cx = 800;
+        rock.setAttribute('transform', k < 1 ? `translate(${cx} ${base}) scale(${k.toFixed(3)}) translate(${-(x0 + width / 2)} ${-base})` : '');
+      };
+      fit();
+      addEventListener('resize', fit);
+    })();
+
+    const spin = document.querySelector('#spinifex');
+    let dots = '';
+    const tuftColors = ['#9a8240', '#a8904c', '#857034', '#b39a55'];
+    for (let i = 0; i < 90; i++) {
+      const y = rand(612, 840);
+      const s = (y - 595) / 260; // nearer = bigger
+      const cx = rand(0, 1600), w = 8 + s * 34, h = 4 + s * 18;
+      let d = '';
+      const n = 7;
+      for (let k = 0; k < n; k++) {
+        const bx = cx - w / 2 + (w * (k + 0.5)) / n;
+        const tip = bx + (bx - cx) * 0.6;
+        const th = h * (0.6 + Math.sin((k / (n - 1)) * Math.PI) * 0.4);
+        d += `M${(bx - 1.5).toFixed(1)} ${y.toFixed(1)}L${tip.toFixed(1)} ${(y - th).toFixed(1)}L${(bx + 1.5).toFixed(1)} ${y.toFixed(1)}Z`;
+      }
+      dots += `<ellipse cx="${cx.toFixed(1)}" cy="${y.toFixed(1)}" rx="${(w * 0.55).toFixed(1)}" ry="${(1.5 + s * 3).toFixed(1)}" fill="#6e3417" opacity="0.35"/><path d="${d}" fill="${tuftColors[i % 4]}" opacity="${(0.6 + s * 0.4).toFixed(2)}"/>`;
+    }
+    spin.innerHTML = dots;
+
+    // ---------- grass ----------
+    const GRASS = {
+      back: { colors: ['#8a6f2e', '#9c7f36', '#6f6428', '#a88a40'], density: 1.1, h: [0.35, 0.85] },
+      front: { colors: ['#c9a24a', '#b58b3a', '#d8b866', '#8d8a3e', '#e3c77a', '#6f6b2e'], density: 1.6, h: [0.4, 1], base: { density: 2.2, h: [0.52, 0.68] } },
+    };
+    function drawGrass(el) {
+      // Seeded per layer: a redraw produces the same blades, never a visible jump.
+      let seed = el.dataset.grass === 'front' ? 97 : 41;
+      const rand = (lo, hi) => lo + ((seed = (seed * 16807) % 2147483647) / 2147483647) * (hi - lo);
+      const cfg = GRASS[el.dataset.grass];
+      const w = el.clientWidth, h = el.clientHeight;
+      const clumps = Math.round((w / 18) * cfg.density);
+      let out = '';
+      for (let c = 0; c < clumps; c++) {
+        const cx = rand(-20, w + 20);
+        // Front grass dips in the middle third so the animals stay visible.
+        const mid = el.dataset.grass === 'front' ? 1 - 0.3 * Math.exp(-(((cx / w) - 0.5) ** 2) / 0.04) : 1;
+        let blades = '';
+        const n = Math.floor(rand(4, 9));
+        for (let b = 0; b < n; b++) {
+          const x = cx + rand(-10, 10);
+          const bh = h * rand(...cfg.h) * mid;
+          const lean = rand(-0.35, 0.35) * bh;
+          const bw = rand(2, 5);
+          const color = cfg.colors[Math.floor(rand(0, 1) * cfg.colors.length)];
+          blades += `<path d="M${x.toFixed(1)} ${h} Q${(x + lean * 0.3).toFixed(1)} ${(h - bh * 0.6).toFixed(1)} ${(x + lean).toFixed(1)} ${(h - bh).toFixed(1)} Q${(x + lean * 0.3 + bw).toFixed(1)} ${(h - bh * 0.55).toFixed(1)} ${(x + bw * 2).toFixed(1)} ${h}Z" fill="${color}"/>`;
+        }
+        out += `<g style="--d:${rand(3.5, 6.5).toFixed(2)}s;--dl:-${rand(0, 6).toFixed(2)}s;--a:${rand(2, 5).toFixed(1)}deg">${blades}</g>`;
+      }
+      // Front grass: a dense band that never dips, so feet on the ground line are always hidden.
+      if (cfg.base) {
+        const n = Math.round((w / 18) * cfg.base.density);
+        for (let c = 0; c < n; c++) {
+          const cx = (c / n) * (w + 40) - 20 + rand(-6, 6);
+          let blades = '';
+          for (let b = 0; b < 6; b++) {
+            const x = cx + rand(-9, 9);
+            const bh = h * rand(...cfg.base.h);
+            const lean = rand(-0.3, 0.3) * bh;
+            const bw = rand(2, 4.5);
+            const color = cfg.colors[Math.floor(rand(0, 1) * cfg.colors.length)];
+            blades += `<path d="M${x.toFixed(1)} ${h} Q${(x + lean * 0.3).toFixed(1)} ${(h - bh * 0.6).toFixed(1)} ${(x + lean).toFixed(1)} ${(h - bh).toFixed(1)} Q${(x + lean * 0.3 + bw).toFixed(1)} ${(h - bh * 0.55).toFixed(1)} ${(x + bw * 2).toFixed(1)} ${h}Z" fill="${color}"/>`;
+          }
+          out += `<g style="--d:${rand(3.5, 6.5).toFixed(2)}s;--dl:-${rand(0, 6).toFixed(2)}s;--a:${rand(1.5, 3.5).toFixed(1)}deg">${blades}</g>`;
+        }
+      }
+      el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><rect y="${h - 6}" width="${w}" height="6" fill="${el.dataset.grass === 'front' ? '#2a1d15' : '#6b3418'}"/>${out}</svg>`;
+    }
+    const grassEls = document.querySelectorAll('[data-grass]');
+    grassEls.forEach(drawGrass);
+    // "Desktop site" on a phone: a ~980px-wide layout zoomed out on a small, tall, high-DPI screen makes the
+    // grass huge, and repainting hundreds of swaying clumps every frame flickers. Keep it still there.
+    const zoomedOutPhone = () => matchMedia('(pointer: coarse)').matches && innerWidth > screen.width * 1.3;
+    const syncStillGrass = () => scene.classList.toggle('still-grass', zoomedOutPhone());
+    syncStillGrass();
+    addEventListener('resize', syncStillGrass);
+    let resizeTimer;
+    // Only a width change needs new blades. Height changes (a phone's address bar sliding in and out
+    // while scrolling) just stretch the existing SVG, so the grass keeps swaying without a cut.
+    let grassWidth = scene.clientWidth;
+    addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (Math.abs(scene.clientWidth - grassWidth) < 2) return;
+        grassWidth = scene.clientWidth;
+        grassEls.forEach(drawGrass);
+      }, 200);
+    });
+
+    // ---------- parallax on scroll ----------
+    const depthEls = scene.querySelectorAll('[data-depth]');
+    addEventListener('scroll', () => {
+      const y = scrollY;
+      if (y > innerHeight * 1.2) return;
+      depthEls.forEach((el) => { el.style.transform = `translateY(${y * el.dataset.depth}px)`; });
+    }, { passive: true });
+
+    // ---------- kick-off countdown + running timecode ----------
+    const target = new Date('2027-04-12T16:00:00').getTime();
+    const pad = (n) => String(n).padStart(2, '0');
+    const premiere = document.querySelector('#premiere');
+    const timecode = document.querySelector('#timecode');
+    const t0 = performance.now();
+    setInterval(() => {
+      const left = Math.max(0, target - Date.now()) / 1000;
+      premiere.textContent = `${Math.floor(left / 86400)}d ${pad(Math.floor(left / 3600) % 24)}:${pad(Math.floor(left / 60) % 60)}:${pad(Math.floor(left) % 60)}`;
+    }, 1000);
+    (function tick() {
+      const s = (performance.now() - t0) / 1000;
+      timecode.textContent = `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(Math.floor(s) % 60)}:${pad(Math.floor((s % 1) * 25))}`;
+      requestAnimationFrame(tick);
+    })();
+
+    // ---------- wildlife ----------
+    const SPECIES = [
+      { name: 'Sulphur-crested cockatoo', latin: 'Cacatua galerita', sheet: '/images/cockatoo-sheet.webp', ratio: 300 / 258, frames: 4, cycle: [0, 1, 2, 3], fly: true },
+      { name: 'Galah', latin: 'Eolophus roseicapilla', sheet: '/images/galah-sheet.webp', ratio: 300 / 362, frames: 4, cycle: [0, 1, 2, 3], fly: true },
+      { name: 'Rainbow lorikeet', latin: 'Trichoglossus moluccanus', sheet: '/images/lorikeet-sheet.webp', ratio: 300 / 277, frames: 3, cycle: [1, 0, 2, 0], fly: true },
+      { name: 'Dingo', latin: 'Canis dingo', sheet: '/images/dingo-sheet.webp', ratio: 480 / 285, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3] },
+      { name: 'Red kangaroo', latin: 'Osphranter rufus', sheet: '/images/kangaroo-sheet.webp', ratio: 480 / 403, frames: 4, hop: { crouch: 0, air: 1, land: 2, stand: 3 }, cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], scale: 1.15 },
+    ];
+    const critters = document.querySelector('#critters');
+    const skyLayer = critters.querySelector('.sky-birds');
+    const caption = document.querySelector('#lower-third');
+    const framePos = (sp, f) => `${(f / (sp.frames - 1)) * 100}% 0`;
+
+    let captionTimer;
+    function announce(sp) {
+      caption.querySelector('.common').textContent = sp.name;
+      caption.querySelector('.latin').textContent = sp.latin;
+      caption.classList.add('show');
+      clearTimeout(captionTimer);
+      captionTimer = setTimeout(() => caption.classList.remove('show'), 5200);
+    }
+
+    function sprite(layer, sp, size, dir, far) {
+      const el = document.createElement('div');
+      el.className = 'critter' + (far ? ' far' : '');
+      el.style.width = `${size}px`;
+      const s = document.createElement('div');
+      s.className = 'critter-sprite';
+      s.style.backgroundImage = `url(${sp.sheet})`;
+      s.style.backgroundSize = `${sp.frames * 100}% 100%`;
+      s.style.aspectRatio = String(sp.ratio);
+      s.style.transform = dir < 0 ? 'scaleX(-1)' : 'none';
+      el.appendChild(s);
+      layer.appendChild(el);
+      return { el, s };
+    }
+    function loopFrames(s, sp, period, phase) {
+      const keys = [...sp.cycle, sp.cycle[0]].map((f) => ({ backgroundPosition: framePos(sp, f), easing: 'steps(1, end)' }));
+      s.animate(keys, { duration: period * 1000, delay: -phase * 1000, iterations: Infinity });
+    }
+    const done = (anim, el) => { anim.onfinish = anim.oncancel = () => el.remove(); };
+    const ends = (size, dir) => { const w = scene.clientWidth; return dir > 0 ? [-size - 20, w + 20] : [w + 20, -size - 20]; };
+
+    function fly(sp) {
+      const H = scene.clientHeight, W = scene.clientWidth;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const count = Math.random() < 0.3 ? 1 : Math.floor(rand(3, 6));
+      const max = W < 640 ? W * 0.32 : Math.min(170, W * 0.15);
+      const baseTop = rand(H * 0.08, H * 0.4);
+      const dur = W < 640 ? rand(5000, 7500) : rand(9000, 14000);
+      let delay = 0;
+      for (let i = 0; i < count; i++) {
+        const size = rand(max * 0.55, max);
+        const { el, s } = sprite(skyLayer, sp, size, dir, size < max * 0.7);
+        loopFrames(s, sp, rand(0.4, 0.58), rand(0, 0.6));
+        const [x0, x1] = ends(size, dir);
+        const top = baseTop + (i % 2 ? -1 : 1) * rand(20, 60);
+        const wob = rand(0, 1), amp = rand(10, 28);
+        const kf = [0, 0.33, 0.66, 1].map((t) => ({ transform: `translate(${x0 + (x1 - x0) * t}px, ${top + Math.sin(t * Math.PI * 2 + wob) * amp}px)` }));
+        done(el.animate(kf, { duration: dur * rand(0.94, 1.06), delay, easing: 'linear', fill: 'both' }), el);
+        delay += rand(380, 800);
+      }
+    }
+
+    // Feet land in the grass band: the back grass is behind them, the front grass hides their paws.
+    const groundY = (size, sp, depth) => scene.clientHeight * (0.92 - depth * 0.03) - size / sp.ratio;
+
+    function trot(sp, size, dir, depth, delay) {
+      const { el, s } = sprite(critters, sp, size, dir, depth > 0.5);
+      const period = rand(...sp.cadence);
+      loopFrames(s, sp, period, rand(0, period));
+      const [x0, x1] = ends(size, dir);
+      const top = groundY(size, sp, depth);
+      const dur = (Math.abs(x1 - x0) / ((size * sp.stride) / period)) * 1000;
+      done(el.animate([{ transform: `translate(${x0}px, ${top}px)` }, { transform: `translate(${x1}px, ${top}px)` }], { duration: dur, delay, easing: 'linear', fill: 'both' }), el);
+    }
+
+    function hop(sp, size, dir, depth, delay, pause) {
+      const { el, s } = sprite(critters, sp, size, dir, depth > 0.5);
+      const { crouch, air, land, stand } = sp.hop;
+      const period = rand(...sp.cadence) * 1000;
+      const len = size * sp.stride * dir;
+      const lift = (size / sp.ratio) * rand(0.14, 0.2);
+      const [x0, x1] = ends(size, dir);
+      const top = groundY(size, sp, depth);
+      const hops = Math.ceil(Math.abs(x1 - x0) / Math.abs(len));
+      const stopAt = pause ? Math.floor(hops * rand(0.3, 0.65)) : -1;
+      const path = [], poses = [];
+      let t = 0, x = x0;
+      const pt = () => path.push({ t, x, y: 0 });
+      const pose = (f) => poses.push({ t, f });
+      for (let i = 0; i < hops; i++) {
+        if (i === stopAt) { pose(stand); pt(); t += pause; pt(); }
+        pose(crouch); pt(); t += period * 0.25; x += len * 0.12;
+        pose(air); pt();
+        const fl = len * 0.76;
+        for (let k = 1; k < 6; k++) path.push({ t: t + period * 0.5 * (k / 6), x: x + fl * (k / 6), y: -Math.sin((k / 6) * Math.PI) * lift });
+        t += period * 0.5; x += fl;
+        pose(land); pt(); t += period * 0.25; x += len * 0.12;
+      }
+      pt(); pose(land);
+      s.animate(poses.map((p) => ({ offset: p.t / t, backgroundPosition: framePos(sp, p.f), easing: 'steps(1, end)' })), { duration: t, delay, fill: 'both' });
+      done(el.animate(path.map((p) => ({ offset: p.t / t, transform: `translate(${p.x}px, ${top + p.y}px)` })), { duration: t, delay, easing: 'linear', fill: 'both' }), el);
+    }
+
+    function walkers(sp) {
+      const W = scene.clientWidth;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const count = Math.floor(rand(sp.pack[0], sp.pack[1] + 1));
+      const max = (W < 640 ? W * 0.5 : Math.min(300, W * 0.24)) * (sp.scale ?? 1);
+      const pause = sp.hop && Math.random() < 0.6 ? rand(1400, 2800) : 0;
+      let delay = 0;
+      for (let i = 0; i < count; i++) {
+        const depth = Math.random(); // 0 = near, 1 = further back
+        const size = max * (1 - depth * 0.35);
+        (sp.hop ? hop : trot)(sp, size, dir, depth, delay, pause);
+        delay += rand(700, 1600);
+      }
+    }
+
+    let visible = true, timer;
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(scene);
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Shuffled rounds: every animal appears once per round, in a new order each time.
+    // A round never opens with the animal that closed the previous one.
+    const forced = new URLSearchParams(location.search).get('species');
+    let round = [];
+    let last = null;
+    function nextSpecies() {
+      if (forced) return SPECIES.find((sp) => sp.name.toLowerCase().includes(forced)) ?? SPECIES[0];
+      if (!round.length) {
+        round = [...SPECIES];
+        for (let i = round.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [round[i], round[j]] = [round[j], round[i]]; }
+        if (round[0] === last) round.push(round.shift());
+      }
+      return (last = round.shift());
+    }
+    function next(wait) {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (visible && !document.hidden && !reduce && critters.querySelectorAll('.critter').length < 12) {
+          const sp = nextSpecies();
+          sp.fly ? fly(sp) : walkers(sp);
+          setTimeout(() => announce(sp), 1600);
+        }
+        next(rand(5000, 10000));
+      }, wait);
+    }
+    next(1200);
+
+
+    // ---------- programme + tally ----------
+    document.querySelector('#episodes').innerHTML = schedule.map((d, i) => `
+      <article class="episode">
+        <div class="still" data-ep="${d.day.slice(0, 3).toUpperCase()}">${d.emoji}</div>
+        <div class="body"><div class="when">${d.day} ${d.date} · ${d.time}</div><h3>${d.title}</h3><p>${d.blurb}</p></div>
+      </article>`).join('');
+
+    const tallyRoot = document.querySelector('#tally-root');
+    if (!isConfigured) tallyRoot.innerHTML = closedNotice('The live tally');
+    else watchPublic((stats) => renderTally(tallyRoot, stats), () => { tallyRoot.innerHTML = closedNotice('The live tally'); });
+  </script>
+</body>
+</html>
