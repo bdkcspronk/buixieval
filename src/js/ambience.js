@@ -22,12 +22,13 @@ const FLYERS = [
   { sheet: '/images/lorikeet-sheet.webp', ratio: 300 / 277, frames: 3, cycle: [1, 0, 2, 0], weight: 3 },
 ];
 
-// Ground animals cross along the bottom of the screen. `stride` is how far one
-// gait cycle carries them, in body lengths, so their feet don't slide.
+// Ground animals cross along the bottom of the screen. Their sheets are lined up
+// on the torso with every frame's feet on the bottom edge. `stride` is how far one
+// gait cycle carries them, in frame widths, so their feet don't slide.
 const WALKERS = [
-  { sheet: '/images/dingo-sheet.webp', ratio: 360 / 214, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3], weight: 1.5 },
-  // Kangaroo: crouch, airborne, land. Frame 3 is it standing up for a look around.
-  { sheet: '/images/kangaroo-sheet.webp', ratio: 360 / 287, frames: 4, cycle: [0, 1, 1, 2], cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], weight: 1.5, stand: 3, scale: 1.15 }, // its long tail eats into the width
+  { sheet: '/images/dingo-sheet.webp', ratio: 480 / 285, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3], weight: 1.5 },
+  // Kangaroo frames: 0 crouch, 1 airborne, 2 landing, 3 standing up for a look around.
+  { sheet: '/images/kangaroo-sheet.webp', ratio: 480 / 403, frames: 4, hop: { crouch: 0, air: 1, land: 2, stand: 3 }, cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], weight: 1.5, scale: 1.15 }, // its long tail eats into the width
 ];
 
 const rand = (min, max) => min + Math.random() * (max - min);
@@ -83,43 +84,89 @@ function createBird(layer, { species, direction, top, size, duration, delay }) {
   return animation;
 }
 
-function createWalker(layer, { species, direction, top, size, delay, pause }) {
+// Trots at a steady pace, legs cycling in time with the ground it covers.
+function createWalker(layer, { species, direction, top, size, delay }) {
   const { animal, sprite } = createSprite(layer, species, size, direction);
   const period = rand(...species.cadence);
-  let gait = playFrames(sprite, species, period, rand(0, period));
+  playFrames(sprite, species, period, rand(0, period));
 
   const width = window.innerWidth;
   const startX = direction > 0 ? -size - 20 : width + 20;
   const endX = direction > 0 ? width + 20 : -size - 20;
   const speed = (size * species.stride) / period; // px per second
-  const travel = (Math.abs(endX - startX) / speed) * 1000;
+  const duration = (Math.abs(endX - startX) / speed) * 1000;
   const at = (x) => ({ transform: `translate(${x}px, ${top}px)` });
 
-  let frames = [at(startX), at(endX)];
-  let duration = travel;
-  if (pause) {
-    // Stop somewhere in the middle, stand up for a moment, then carry on.
-    const share = rand(0.3, 0.65);
-    const stopX = startX + (endX - startX) * share;
-    const stopAt = travel * share;
-    duration = travel + pause;
-    frames = [
-      { ...at(startX), offset: 0 },
-      { ...at(stopX), offset: stopAt / duration },
-      { ...at(stopX), offset: (stopAt + pause) / duration },
-      { ...at(endX), offset: 1 },
-    ];
-    setTimeout(() => {
-      if (!animal.isConnected) return;
-      gait.cancel();
-      sprite.style.backgroundPosition = framePosition(species, species.stand);
-      setTimeout(() => {
-        if (animal.isConnected) gait = playFrames(sprite, species, period, 0);
-      }, pause);
-    }, delay + stopAt);
-  }
+  const animation = animal.animate([at(startX), at(endX)], { duration, delay, easing: 'linear', fill: 'both' });
+  animation.onfinish = () => animal.remove();
+  animation.oncancel = () => animal.remove();
+  return animation;
+}
 
-  const animation = animal.animate(frames, { duration, delay, easing: 'linear', fill: 'both' });
+// Hops: barely moves while its feet are on the ground (crouch, landing), covers
+// most of each hop in the air along an arc, and may stop once to stand up.
+// Movement and frames are built on one timeline, so they never drift apart.
+const HOP = { crouch: 0.25, air: 0.5, land: 0.25 }; // share of a hop's time
+const GROUND_SHARE = 0.12; // share of a hop's distance covered in each ground phase
+
+function createHopper(layer, { species, direction, top, size, delay, pause }) {
+  const { animal, sprite } = createSprite(layer, species, size, direction);
+  const { crouch, air, land, stand } = species.hop;
+  const period = rand(...species.cadence) * 1000;
+  const hopLength = size * species.stride * direction;
+  const lift = (size / species.ratio) * rand(0.14, 0.2);
+
+  const width = window.innerWidth;
+  const startX = direction > 0 ? -size - 20 : width + 20;
+  const endX = direction > 0 ? width + 20 : -size - 20;
+  const hops = Math.ceil(Math.abs(endX - startX) / Math.abs(hopLength));
+  const stopAfter = pause ? Math.floor(hops * rand(0.3, 0.65)) : -1;
+
+  const path = [];
+  const poses = [];
+  let t = 0;
+  let x = startX;
+  const point = (dx = 0, dy = 0) => path.push({ t, x: x + dx, y: dy });
+  const pose = (frame) => poses.push({ t, frame });
+
+  for (let i = 0; i < hops; i++) {
+    if (i === stopAfter) {
+      pose(stand);
+      point();
+      t += pause;
+      point();
+    }
+    pose(crouch);
+    point();
+    t += period * HOP.crouch;
+    x += hopLength * GROUND_SHARE;
+    pose(air);
+    point();
+    const flight = hopLength * (1 - 2 * GROUND_SHARE);
+    for (let k = 1; k < 6; k++) {
+      const step = k / 6;
+      path.push({ t: t + period * HOP.air * step, x: x + flight * step, y: -Math.sin(step * Math.PI) * lift });
+    }
+    t += period * HOP.air;
+    x += flight;
+    pose(land);
+    point();
+    t += period * HOP.land;
+    x += hopLength * GROUND_SHARE;
+  }
+  point();
+  pose(land);
+
+  const duration = t;
+  const move = path.map((p) => ({ offset: p.t / duration, transform: `translate(${p.x}px, ${top + p.y}px)` }));
+  const frames = poses.map((p) => ({
+    offset: p.t / duration,
+    backgroundPosition: framePosition(species, p.frame),
+    easing: 'steps(1, end)',
+  }));
+
+  sprite.animate(frames, { duration, delay, fill: 'both' });
+  const animation = animal.animate(move, { duration, delay, easing: 'linear', fill: 'both' });
   animation.onfinish = () => animal.remove();
   animation.oncancel = () => animal.remove();
   return animation;
@@ -133,12 +180,13 @@ function sendWalkers(layer, species, room) {
   const maxSize = (phone ? window.innerWidth * 0.6 : Math.min(360, window.innerWidth * 0.4)) * (species.scale ?? 1);
   const minSize = maxSize * 0.7;
   // The whole mob stops together, if it stops at all.
-  const pause = species.stand != null && Math.random() < 0.6 ? rand(1400, 2800) : 0;
+  const pause = species.hop && Math.random() < 0.6 ? rand(1400, 2800) : 0;
+  const create = species.hop ? createHopper : createWalker;
 
   let delay = 0;
   for (let i = 0; i < count; i++) {
     const size = rand(minSize, maxSize);
-    createWalker(layer, {
+    create(layer, {
       species,
       direction,
       top: height - size / species.ratio - rand(6, phone ? 30 : 60),
