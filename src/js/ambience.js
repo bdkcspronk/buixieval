@@ -40,8 +40,13 @@ const framePosition = (species, frame) => `${(frame / (species.frames - 1)) * 10
 
 // Plays the sheet's frames in `cycle` order, each for an equal share of `period` seconds.
 function playFrames(sprite, species, period, phase) {
-  const keys = [...species.cycle, species.cycle[0]].map((frame) => ({ backgroundPosition: framePosition(species, frame) }));
-  return sprite.animate(keys, { duration: period * 1000, delay: -phase * 1000, iterations: Infinity, easing: 'steps(1, end)' });
+  // The step easing goes on each keyframe: in the options it would apply to the
+  // whole cycle and hold the first frame the entire time.
+  const keys = [...species.cycle, species.cycle[0]].map((frame) => ({
+    backgroundPosition: framePosition(species, frame),
+    easing: 'steps(1, end)',
+  }));
+  return sprite.animate(keys, { duration: period * 1000, delay: -phase * 1000, iterations: Infinity });
 }
 
 function createSprite(layer, species, size, direction) {
