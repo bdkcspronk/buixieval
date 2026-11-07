@@ -1,5 +1,6 @@
 // Outback ambience: a floating sound toggle. While it is on, the bird-call loop
-// plays and the occasional bird or small flock flies across the screen.
+// plays, the occasional bird or small flock flies across the screen, and now and
+// then dingoes trot or kangaroos hop along the bottom.
 
 const AUDIO_SRC = '/audio/outback.mp3';
 const VOLUME = 0.5;
@@ -12,29 +13,56 @@ const NEXT_FLOCK_DELAY = [10000, 25000];
 const NEXT_FLOCK_DELAY_PHONE = [16000, 34000];
 const isPhone = () => window.matchMedia?.('(max-width: 640px)').matches ?? window.innerWidth <= 640;
 
-// Each sheet holds the 4 flap frames side by side (width/height = ratio of one frame).
-const SPECIES = [
-  { sheet: '/images/cockatoo-sheet.webp', ratio: 300 / 258 },
-  { sheet: '/images/galah-sheet.webp', ratio: 300 / 362 },
+// Each sheet holds its frames side by side (width/height = ratio of one frame).
+// `cycle` is the order the frames play in; `weight` is how often the species shows up.
+const FLYERS = [
+  { sheet: '/images/cockatoo-sheet.webp', ratio: 300 / 258, frames: 4, cycle: [0, 1, 2, 3], weight: 3 },
+  { sheet: '/images/galah-sheet.webp', ratio: 300 / 362, frames: 4, cycle: [0, 1, 2, 3], weight: 3 },
+  // Lorikeet: wings up, mid, down, mid.
+  { sheet: '/images/lorikeet-sheet.webp', ratio: 300 / 277, frames: 3, cycle: [1, 0, 2, 0], weight: 3 },
+];
+
+// Ground animals cross along the bottom of the screen. `stride` is how far one
+// gait cycle carries them, in body lengths, so their feet don't slide.
+const WALKERS = [
+  { sheet: '/images/dingo-sheet.webp', ratio: 360 / 214, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3], weight: 1.5 },
+  // Kangaroo: crouch, airborne, land. Frame 3 is it standing up for a look around.
+  { sheet: '/images/kangaroo-sheet.webp', ratio: 360 / 287, frames: 4, cycle: [0, 1, 1, 2], cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], weight: 1.5, stand: 3, scale: 1.15 }, // its long tail eats into the width
 ];
 
 const rand = (min, max) => min + Math.random() * (max - min);
-const pick = (list) => list[Math.floor(Math.random() * list.length)];
+const pickWeighted = (list) => {
+  let roll = Math.random() * list.reduce((sum, item) => sum + item.weight, 0);
+  return list.find((item) => (roll -= item.weight) < 0) ?? list[list.length - 1];
+};
 
-function createBird(layer, { species, direction, top, size, duration, delay }) {
-  const bird = document.createElement('div');
-  bird.className = 'bird';
-  bird.style.width = `${size}px`;
+const framePosition = (species, frame) => `${(frame / (species.frames - 1)) * 100}% 0`;
+
+// Plays the sheet's frames in `cycle` order, each for an equal share of `period` seconds.
+function playFrames(sprite, species, period, phase) {
+  const keys = [...species.cycle, species.cycle[0]].map((frame) => ({ backgroundPosition: framePosition(species, frame) }));
+  return sprite.animate(keys, { duration: period * 1000, delay: -phase * 1000, iterations: Infinity, easing: 'steps(1, end)' });
+}
+
+function createSprite(layer, species, size, direction) {
+  const animal = document.createElement('div');
+  animal.className = 'bird';
+  animal.style.width = `${size}px`;
   const sprite = document.createElement('div');
   sprite.className = 'bird-sprite';
   sprite.style.backgroundImage = `url(${species.sheet})`;
+  sprite.style.backgroundSize = `${species.frames * 100}% 100%`;
   sprite.style.aspectRatio = String(species.ratio);
-  // Own flap speed and starting phase per bird, so a flock never flaps in unison.
-  sprite.style.setProperty('--flap', `${rand(0.4, 0.58).toFixed(2)}s`);
-  sprite.style.animationDelay = `-${rand(0, 0.6).toFixed(2)}s`;
   sprite.style.transform = direction < 0 ? 'scaleX(-1)' : 'none';
-  bird.appendChild(sprite);
-  layer.appendChild(bird);
+  animal.appendChild(sprite);
+  layer.appendChild(animal);
+  return { animal, sprite };
+}
+
+function createBird(layer, { species, direction, top, size, duration, delay }) {
+  const { animal: bird, sprite } = createSprite(layer, species, size, direction);
+  // Own flap speed and starting phase per bird, so a flock never flaps in unison.
+  playFrames(sprite, species, rand(0.4, 0.58), rand(0, 0.6));
 
   const width = window.innerWidth;
   const startX = direction > 0 ? -size - 20 : width + 20;
@@ -50,11 +78,82 @@ function createBird(layer, { species, direction, top, size, duration, delay }) {
   return animation;
 }
 
-function sendFlock(layer) {
-  const species = pick(SPECIES);
+function createWalker(layer, { species, direction, top, size, delay, pause }) {
+  const { animal, sprite } = createSprite(layer, species, size, direction);
+  const period = rand(...species.cadence);
+  let gait = playFrames(sprite, species, period, rand(0, period));
+
+  const width = window.innerWidth;
+  const startX = direction > 0 ? -size - 20 : width + 20;
+  const endX = direction > 0 ? width + 20 : -size - 20;
+  const speed = (size * species.stride) / period; // px per second
+  const travel = (Math.abs(endX - startX) / speed) * 1000;
+  const at = (x) => ({ transform: `translate(${x}px, ${top}px)` });
+
+  let frames = [at(startX), at(endX)];
+  let duration = travel;
+  if (pause) {
+    // Stop somewhere in the middle, stand up for a moment, then carry on.
+    const share = rand(0.3, 0.65);
+    const stopX = startX + (endX - startX) * share;
+    const stopAt = travel * share;
+    duration = travel + pause;
+    frames = [
+      { ...at(startX), offset: 0 },
+      { ...at(stopX), offset: stopAt / duration },
+      { ...at(stopX), offset: (stopAt + pause) / duration },
+      { ...at(endX), offset: 1 },
+    ];
+    setTimeout(() => {
+      if (!animal.isConnected) return;
+      gait.cancel();
+      sprite.style.backgroundPosition = framePosition(species, species.stand);
+      setTimeout(() => {
+        if (animal.isConnected) gait = playFrames(sprite, species, period, 0);
+      }, pause);
+    }, delay + stopAt);
+  }
+
+  const animation = animal.animate(frames, { duration, delay, easing: 'linear', fill: 'both' });
+  animation.onfinish = () => animal.remove();
+  animation.oncancel = () => animal.remove();
+  return animation;
+}
+
+function sendWalkers(layer, species, room) {
   const direction = Math.random() < 0.5 ? 1 : -1;
+  const count = Math.min(room, Math.floor(rand(species.pack[0], species.pack[1] + 1)));
+  const height = window.innerHeight;
+  const phone = isPhone();
+  const maxSize = (phone ? window.innerWidth * 0.6 : Math.min(360, window.innerWidth * 0.4)) * (species.scale ?? 1);
+  const minSize = maxSize * 0.7;
+  // The whole mob stops together, if it stops at all.
+  const pause = species.stand != null && Math.random() < 0.6 ? rand(1400, 2800) : 0;
+
+  let delay = 0;
+  for (let i = 0; i < count; i++) {
+    const size = rand(minSize, maxSize);
+    createWalker(layer, {
+      species,
+      direction,
+      top: height - size / species.ratio - rand(6, phone ? 30 : 60),
+      size,
+      delay,
+      pause,
+    });
+    delay += rand(700, 1600);
+  }
+}
+
+function sendFlock(layer) {
   const room = MAX_BIRDS - layer.childElementCount;
   if (room <= 0) return;
+  const species = pickWeighted([...FLYERS, ...WALKERS]);
+  if (WALKERS.includes(species)) {
+    sendWalkers(layer, species, room);
+    return;
+  }
+  const direction = Math.random() < 0.5 ? 1 : -1;
   const count = Math.min(room, Math.random() < 0.3 ? 1 : Math.floor(rand(3, 6)));
   const height = window.innerHeight;
   // Phones: bigger birds that cross faster, with more time between them.

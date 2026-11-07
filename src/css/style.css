@@ -2307,21 +2307,8 @@ textarea {
 
 .bird-sprite {
   width: 100%;
-  background-size: 400% 100%;
   background-repeat: no-repeat;
-  animation: bird-flap var(--flap, 0.5s) steps(1, end) infinite;
   filter: drop-shadow(0 4px 3px rgba(20, 16, 16, 0.35));
-}
-
-@keyframes bird-flap {
-  0% { background-position: 0% 0; }
-  25% { background-position: 33.333% 0; }
-  50% { background-position: 66.667% 0; }
-  75% { background-position: 100% 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bird-sprite { animation: none; }
 }
 
 .ambience-toggle {
