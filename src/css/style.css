@@ -1017,6 +1017,15 @@ textarea {
   cursor: pointer;
 }
 
+.photo-saved {
+  margin: 0;
+  font-weight: 700;
+}
+
+.photo-saved[hidden] {
+  display: none;
+}
+
 .file-btn[hidden],
 .btn[hidden] {
   display: none;

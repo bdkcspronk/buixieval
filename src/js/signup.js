@@ -197,8 +197,9 @@ function renderAccount(member) {
       <div class="photo-row">
         <div class="photo-preview ${teamColorClass(team)}" id="photo-preview"></div>
         <div class="photo-actions">
+          <p class="photo-saved" data-photo-saved hidden>✓ Your picture is saved</p>
           <label class="btn btn-red file-btn">
-            Upload JPG or PNG
+            <span data-file-label>Upload JPG or PNG</span>
             <input type="file" accept="image/jpeg,image/png" data-photo-input />
           </label>
           <div class="photo-confirm" data-photo-confirm hidden>
@@ -263,7 +264,10 @@ function renderPhoto() {
   preview.classList.toggle('is-pending', Boolean(pendingPhoto));
   root.querySelector('[data-photo-confirm]').hidden = !pendingPhoto;
   root.querySelector('.file-btn').hidden = Boolean(pendingPhoto);
-  root.querySelector('[data-remove-photo]').hidden = Boolean(pendingPhoto) || !isSafeImage(photos[user.uid]);
+  const saved = !pendingPhoto && isSafeImage(photos[user.uid]);
+  root.querySelector('[data-remove-photo]').hidden = !saved;
+  root.querySelector('[data-photo-saved]').hidden = !saved;
+  root.querySelector('[data-file-label]').textContent = saved ? 'Replace with another picture' : 'Upload JPG or PNG';
 }
 
 function wirePhoto() {
@@ -291,7 +295,7 @@ function wirePhoto() {
       await setMemberPhoto(user.uid, pendingPhoto);
       pendingPhoto = null;
       renderPhoto();
-      setStatus(status, 'Looking good!');
+      setStatus(status, 'Uploaded — looking good!');
     } catch {
       setStatus(status, 'That didn\'t work — please try again.', true);
     }
