@@ -14,28 +14,62 @@ const NEXT_FLOCK_DELAY_PHONE = [16000, 34000];
 const isPhone = () => window.matchMedia?.('(max-width: 640px)').matches ?? window.innerWidth <= 640;
 
 // Each sheet holds its frames side by side (width/height = ratio of one frame).
-// `cycle` is the order the frames play in; `weight` is how often the species shows up.
+// `cycle` is the order the frames play in.
 const FLYERS = [
-  { sheet: '/images/cockatoo-sheet.webp', ratio: 300 / 258, frames: 4, cycle: [0, 1, 2, 3], weight: 3 },
-  { sheet: '/images/galah-sheet.webp', ratio: 300 / 362, frames: 4, cycle: [0, 1, 2, 3], weight: 3 },
+  { sheet: '/images/cockatoo-sheet.webp', ratio: 300 / 258, frames: 4, cycle: [0, 1, 2, 3] },
+  { sheet: '/images/galah-sheet.webp', ratio: 300 / 362, frames: 4, cycle: [0, 1, 2, 3] },
   // Lorikeet: wings up, mid, down, mid.
-  { sheet: '/images/lorikeet-sheet.webp', ratio: 300 / 277, frames: 3, cycle: [1, 0, 2, 0], weight: 3 },
+  { sheet: '/images/lorikeet-sheet.webp', ratio: 300 / 277, frames: 3, cycle: [1, 0, 2, 0] },
 ];
 
 // Ground animals cross along the bottom of the screen. Their sheets are lined up
 // on the torso with every frame's feet on the bottom edge. `stride` is how far one
 // gait cycle carries them, in frame widths, so their feet don't slide.
 const WALKERS = [
-  { sheet: '/images/dingo-sheet.webp', ratio: 480 / 285, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3], weight: 1.5 },
+  { sheet: '/images/dingo-sheet.webp', ratio: 480 / 285, frames: 4, cycle: [0, 1, 2, 3], cadence: [0.6, 0.72], stride: 0.85, pack: [1, 3] },
   // Kangaroo frames: 0 crouch, 1 airborne, 2 landing, 3 standing up for a look around.
-  { sheet: '/images/kangaroo-sheet.webp', ratio: 480 / 403, frames: 4, hop: { crouch: 0, air: 1, land: 2, stand: 3 }, cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], weight: 1.5, scale: 1.15 }, // its long tail eats into the width
+  { sheet: '/images/kangaroo-sheet.webp', ratio: 480 / 403, frames: 4, hop: { crouch: 0, air: 1, land: 2, stand: 3 }, cadence: [0.7, 0.85], stride: 1.3, pack: [1, 3], scale: 1.15 }, // its long tail eats into the width
 ];
 
 const rand = (min, max) => min + Math.random() * (max - min);
-const pickWeighted = (list) => {
-  let roll = Math.random() * list.reduce((sum, item) => sum + item.weight, 0);
-  return list.find((item) => (roll -= item.weight) < 0) ?? list[list.length - 1];
-};
+
+// Shuffled rounds: every animal shows up once per round, in a new order each
+// time, and a round never opens with the animal that closed the previous one.
+// The round lives in sessionStorage so it carries on from page to page.
+const ROUND_KEY = 'bx-ambience-round';
+const ANIMALS = [...FLYERS, ...WALKERS];
+const bySheet = (sheet) => ANIMALS.find((animal) => animal.sheet === sheet);
+
+function loadRound() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(ROUND_KEY));
+    return {
+      round: (saved?.round ?? []).map(bySheet).filter(Boolean),
+      last: bySheet(saved?.last) ?? null,
+    };
+  } catch {
+    return { round: [], last: null };
+  }
+}
+
+function nextAnimal() {
+  let { round, last } = loadRound();
+  if (!round.length) {
+    round = [...ANIMALS];
+    for (let i = round.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [round[i], round[j]] = [round[j], round[i]];
+    }
+    if (round[0] === last) round.push(round.shift());
+  }
+  last = round.shift();
+  try {
+    sessionStorage.setItem(ROUND_KEY, JSON.stringify({ round: round.map((a) => a.sheet), last: last.sheet }));
+  } catch {
+    // Storage blocked: the round just restarts on the next page.
+  }
+  return last;
+}
 
 const framePosition = (species, frame) => `${(frame / (species.frames - 1)) * 100}% 0`;
 
@@ -201,7 +235,7 @@ function sendWalkers(layer, species, room) {
 function sendFlock(layer) {
   const room = MAX_BIRDS - layer.childElementCount;
   if (room <= 0) return;
-  const species = pickWeighted([...FLYERS, ...WALKERS]);
+  const species = nextAnimal();
   if (WALKERS.includes(species)) {
     sendWalkers(layer, species, room);
     return;
