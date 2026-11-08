@@ -133,8 +133,26 @@ function drawWaterhole(ctx, { x, y, rings }) {
   ctx.stroke();
 }
 
+const SPIN = [0.04, 0.09]; // rad/s range for a hole's slow turn
+
+// Renders a hole once onto its own small canvas, centred, so it can be drawn
+// rotated each frame. Each hole turns clockwise or anticlockwise at its own pace.
+function makeHoleSprite(o, dpr) {
+  const half = o.outline + 4 * S;
+  const size = Math.ceil(half * 2 * dpr);
+  const sprite = document.createElement('canvas');
+  sprite.width = size;
+  sprite.height = size;
+  const ctx = sprite.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, size / 2, size / 2);
+  drawWaterhole(ctx, { x: 0, y: 0, rings: o.rings });
+  const spin = (Math.random() < 0.5 ? -1 : 1) * rand(SPIN[0], SPIN[1]);
+  return { ...o, sprite, half: size / 2 / dpr, spin, angle0: rand(0, Math.PI * 2) };
+}
+
 // Draws everything that stays still onto an offscreen layer once, and returns a
-// function that paints that layer plus the flowing river dots for time t (seconds).
+// function that paints that layer plus the turning holes and flowing river dots
+// for time t (seconds).
 function build(canvas, w, h) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(w * dpr);
@@ -205,13 +223,18 @@ function build(canvas, w, h) {
   }
 
   rivers.forEach((r) => drawRiverBanks(ctx, r, h));
-  holes.forEach((o) => drawWaterhole(ctx, o));
+  const sprites = holes.map((o) => makeHoleSprite(o, dpr));
 
   const paths = rivers.map((r) => riverPath(r, h));
   const out = canvas.getContext('2d');
   return (t) => {
     out.setTransform(1, 0, 0, 1, 0, 0);
     out.drawImage(bg, 0, 0);
+    for (const o of sprites) {
+      out.setTransform(dpr, 0, 0, dpr, o.x * dpr, o.y * dpr);
+      out.rotate(o.angle0 + o.spin * t);
+      out.drawImage(o.sprite, -o.half, -o.half, o.half * 2, o.half * 2);
+    }
     out.setTransform(dpr, 0, 0, dpr, 0, 0);
     const blue = new Path2D();
     paths.forEach((p) => addRiverDots(blue, p, t));
