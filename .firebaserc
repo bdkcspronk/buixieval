@@ -7,6 +7,9 @@
       "hosting": {
         "buixieval": [
           "buixieval"
+        ],
+        "redirect": [
+          "buixieval-9c293"
         ]
       }
     }
