@@ -154,7 +154,7 @@ function watchMapVisibility() {
     mapSeen = true;
     syncPhotos();
   }, { rootMargin: '300px 0px' });
-  observer.observe(map);
+  mapObserver.observe(map);
 }
 
 // Emma and Camiel head their team's roster; everyone else follows alphabetically.
